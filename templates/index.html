@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная страница{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 id="message"></h3>
+            </div>
+            <div class="card-body">
+                <p>Текущая дата и время: <span id="time"></span></p>
+
+                <div id="auth-content"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Функция для получения данных с сервера
+    async function getData() {
+        try {
+            const response = await fetch('/');
+            const data = await response.json();
+            
+            // Отображение данных
+            document.getElementById('message').innerText = data.message;
+            document.getElementById('time').innerText = new Date(data.current_datetime).toLocaleString();
+
+            if (data.user_authenticated) {
+                // Если пользователь авторизован
+                const authContent = `
+                    <h2>Добро пожаловать, ${data.user_name}!</h2>
+                    <a href="/tasks" class="btn btn-success">Перейти к задачам</a>
+                `;
+                document.getElementById('auth-content').innerHTML = authContent;
+            } else {
+                // Если пользователь не авторизован
+                const authContent = `
+                    <div class="alert alert-warning mt-4">
+                        <h4 class="alert-heading">Добро пожаловать на главную страницу!</h4>
+                        <p>Пожалуйста, авторизуйтесь, чтобы начать работать с производственными задачами.</p>
+                        <a href="/login" class="btn btn-primary">Войти</a>
+                    </div>
+                `;
+                document.getElementById('auth-content').innerHTML = authContent;
+            }
+        } catch (error) {
+            console.error("Ошибка при получении данных:", error);
+        }
+    }
+
+    // Вызываем функцию для получения данных при загрузке страницы
+    getData();
+
+    // Функция для обновления времени на странице каждую секунду
+    let currentTime = new Date().getTime();
+
+    function updateTime() {
+        currentTime += 1000;
+        const date = new Date(currentTime);
+        document.getElementById('time').innerText = date.toLocaleString();
+    }
+
+    setInterval(updateTime, 1000);
+    updateTime();
+</script>
+{% endblock %}
