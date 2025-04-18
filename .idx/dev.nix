@@ -41,12 +41,20 @@ in
     my-python
   ];
 
-  idx = {
-    previews = {
+  idx.previews = {
       enable = true;
       previews = {
-        frontend = {
-          command = ["npm" "run" "serve"];
+        web = {
+          command = [
+          "npm"
+          "run"
+          "start"
+          "--"
+          "--port"
+          "$PORT"
+          "--host"
+          "0.0.0.0"
+          "--disable-host-check"];
           manager = "web";
           env = {
             PORT = "$PORT";
@@ -63,5 +71,5 @@ in
         };
       };
     };
-  };
+
 }
