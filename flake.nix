@@ -1,4 +1,3 @@
-nix
 {
   description = "Task manager";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
