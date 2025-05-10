@@ -9,7 +9,7 @@ from models import (
     ManagerEnum,
     Material,
     Product,
-    ProfileType,
+    ProfileTypeEnum,
     Sheets,
     StatusEnum,
     Task,
@@ -17,7 +17,6 @@ from models import (
     UrgencyEnum,
     User,
     Workshop,
-    WorkshopEnum,
     Customer
 )
 from services.user_service import get_user_workshop
@@ -192,8 +191,7 @@ def get_types(db: Session) -> tuple[list[str], list[str], list[str], list[str]]:
     """Получает список типов."""
     managers = [managers.value for managers in ManagerEnum]
     db_service = DatabaseService(db)
-    profile_types = db_service.get_all(ProfileType)
-    profile_values = [profile.name for profile in profile_types]
+    profile_values = [profile.name for profile in ProfileTypeEnum]
     klamer_types = [klamer_types.value for klamer_types in KlamerTypeEnum]
     kassete_types = [kassete_types.value for kassete_types in CassetteTypeEnum]
     return managers, profile_values, klamer_types, kassete_types

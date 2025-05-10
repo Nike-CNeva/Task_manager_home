@@ -3,15 +3,11 @@ from sqlalchemy.orm import Session
 from fastapi.responses import JSONResponse
 from typing import List
 from dependencies import get_current_user, get_db
-from models import (
-    Bid, Bracket, Cassette, Comment, Customer, Klamer,
-    ManagerEnum, Material, Profile, ProfileType, Sheets,
-    StatusEnum, Task, TaskWorkshop, User, Workshop, Product
-)
+from models import Customer, ManagerEnum, StatusEnum, User
 from schemas import BidCreateRequest, CustomerCreateRequest, CustomerRead, ProductResponse, TaskRead
 from services import task_service, product_service, material_service
 import json
-import os
+
 
 router = APIRouter()
 

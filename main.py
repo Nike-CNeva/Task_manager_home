@@ -5,7 +5,6 @@ from routers import users, tasks, files, comments, auth, home
 from settings import settings
 from middlewares.auth_middleware import AuthMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.models import APIKey, APIKeyIn, SecuritySchemeType
 from fastapi.openapi.utils import get_openapi
 
 app = FastAPI(

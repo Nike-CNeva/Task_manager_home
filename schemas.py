@@ -1,13 +1,11 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator, validator
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List, Dict, Any
-from enum import Enum
 from datetime import datetime
-
 from models import ProductTypeEnum, StatusEnum, UserTypeEnum, WorkshopEnum
 
 
 class UserBase(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
     name: str = Field(..., description="Имя пользователя")
     firstname: Optional[str] = Field(None, description="Фамилия пользователя")
@@ -15,22 +13,17 @@ class UserBase(BaseModel):
     telegram: Optional[str] = Field(None, description="Telegram пользователя")
     username: str = Field(..., description="Имя пользователя для входа")
     user_type: UserTypeEnum = Field(..., description="Тип пользователя")
-    is_active: bool = Field(True, description="Активен ли пользователь")
+    is_active: Optional[bool] = Field(True, description="Активен ли пользователь")
 
     
 class UserRead(UserBase):
     id: int = Field(..., description="ID пользователя")
 
 
-class UserSaveForm(BaseModel):
-    id: Optional[int] = None
-    name: str = Field(..., description="Имя пользователя")
-    firstname: str = Field(..., description="Фамилия пользователя")
-    username: str = Field(..., description="Логин пользователя для входа")
-    user_type: UserTypeEnum = Field(..., description="Тип пользователя")
+class UserSaveForm(UserBase):
     password: Optional[str] = Field(None, description="Пароль пользователя")
     workshops: List[WorkshopEnum] = Field(..., description="Список цехов")
-    is_active: Optional[bool] = True
+
 
 class PasswordChangeRequest(BaseModel):
     current_password: str
@@ -58,7 +51,6 @@ class BidBase(BaseModel):
 
     task_number: Optional[str] = Field(None, description="Номер заявки")
     manager: str = Field(..., description="Менеджер")
-    is_deleted: bool = Field(False, description="Удалена ли заявка")
 
 
 class BidRead(BidBase):
@@ -81,9 +73,9 @@ class ProductResponse(BaseModel):
 class MaterialBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    form_id: str = Field(..., description="Форма материала")
-    type_id: str = Field(..., description="Тип материала")
-    thickness_id: str = Field(..., description="Толщина материала")
+    form: str = Field(..., description="Форма материала")
+    type: str = Field(..., description="Тип материала")
+    thickness: str = Field(..., description="Толщина материала")
     painting: bool = Field(False, description="Наличие покраски")
 
 

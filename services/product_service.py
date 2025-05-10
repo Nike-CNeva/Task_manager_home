@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from dependencies import get_db
-from models import Product, ProfileType, ProductTypeEnum
+from models import Product, ProductTypeEnum, ProfileTypeEnum
 from database_service import DatabaseService
 from typing import List, Dict, Any
 from fastapi import Depends, HTTPException
@@ -27,8 +27,7 @@ class ProductService:
             raise HTTPException(status_code=404, detail="Product not found")
 
         if product.type == ProductTypeEnum.PROFILE:
-            profile_types = self.db.query(ProfileType).all()
-            return [{"id": pt.id, "name": pt.name} for pt in profile_types]
+            return [{"id": pt.id, "name": pt.name} for pt in ProfileTypeEnum]
         elif product.type == ProductTypeEnum.KLAMER:
             return [{"id": 1, "name": "Рядный"}, {"id": 2, "name": "Стартовый"}, {"id": 3, "name": "Угловой"}]
         elif product.type == ProductTypeEnum.BRACKET:
