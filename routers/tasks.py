@@ -8,7 +8,7 @@ from models import (
     ManagerEnum, Material, Profile, ProfileType, Sheets,
     StatusEnum, Task, TaskWorkshop, User, Workshop, Product
 )
-from schemas import BidCreateRequest, CustomerCreateRequest, CustomerRead, ProductResponse
+from schemas import BidCreateRequest, CustomerCreateRequest, CustomerRead, ProductResponse, TaskRead
 from services import task_service, product_service, material_service
 import json
 import os
@@ -16,11 +16,14 @@ import os
 router = APIRouter()
 
 
-@router.get("/tasks", response_model=List[dict])
-def get_tasks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    tasks = task_service.get_tasks_list(current_user, db)
-    return JSONResponse(content=tasks)
-
+@router.get("/tasks", response_model=List[TaskRead])
+async def get_tasks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        tasks = task_service.get_tasks_list(current_user, db)
+        return tasks
+    except Exception as e:
+        print("❌ Ошибка:", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/task/{task_id}", response_model=dict)
 def get_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

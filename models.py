@@ -1,11 +1,12 @@
-﻿from sqlalchemy import JSON, Table, Column, Integer, String, Boolean, Enum, ForeignKey, DateTime
+﻿from re import S
+from sqlalchemy import Enum, Table, Column, Integer, String, Boolean, Enum, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from database import Base
 from sqlalchemy.sql import func
-from enum import Enum as PyEnum
+
 
 # Enums
-class ProductTypeEnum(str, PyEnum):
+class ProductTypeEnum(str, Enum):
     PROFILE = "Профиля"
     KLAMER = "Клямера"
     BRACKET = "Кронштейны"
@@ -15,15 +16,14 @@ class ProductTypeEnum(str, PyEnum):
     LINEAR_PANEL = "Линеарные панели"
     SHEET = "Листы"
     WALL_PANEL = "Стеновые панели(Продэкс)"
-    OTHER = "Другое"
 
-class UserTypeEnum(str, PyEnum):
+class UserTypeEnum(str, Enum):
     ADMIN = "Администратор"
     ENGINEER = "Инженер"
     OPERATOR = "Оператор"
     SUPERVISER = "Старший смены"
     
-class ProfileTypeEnum(str, PyEnum):
+class ProfileTypeEnum(str, Enum):
     G40X40 = "Г-образный 40х40"
     G40X60 = "Г-образный 40х60"
     G50X50 = "Г-образный 50х50"
@@ -34,10 +34,8 @@ class ProfileTypeEnum(str, PyEnum):
     PGSH = "ПГШ"
     PVSH = "ПВШ"
     PNU = "ПНУ"
-    OTHER = "Не стандрт"
 
-
-class WorkshopEnum(str, PyEnum):
+class WorkshopEnum(str, Enum):
     PROFILE = "Прокат профилей"
     KLAMER = "Прокат клямеров"
     BRACKET = "Прокат кронштейнов"
@@ -48,7 +46,7 @@ class WorkshopEnum(str, PyEnum):
     COORDINATE_PUNCHING = "Координатка"
     PAINTING = "Покраска"
 
-class ManagerEnum(str, PyEnum):
+class ManagerEnum(str, Enum):
     NOVIKOV = "Новиков"
     SEMICHEV = "Семичев С."
     PTICHKINA = "Птичкина"
@@ -56,12 +54,12 @@ class ManagerEnum(str, PyEnum):
     GAVRILOVEC = "Гавриловец"
     SEMICHEV_YOUNGER = "Семичев Д."
 
-class KlamerTypeEnum(str, PyEnum):
+class KlamerTypeEnum(str, Enum):
     IN_LINE = "Рядный"
     STARTING = "Стартовый"
     ANGULAR = "Угловой"
 
-class CassetteTypeEnum(str, PyEnum):
+class CassetteTypeEnum(str, Enum):
     KZT_STD = "Зактрытого типа(стандарт)"
     KOT_STD = "Открытого типа(стандарт)"
     KOTVO = "Открытого типа, отв. в вертикальных рустах"
@@ -69,19 +67,19 @@ class CassetteTypeEnum(str, PyEnum):
     KOT = "Открытого типа"
     OTHER = "Другое"
 
-class MaterialFormEnum(str, PyEnum):
+class MaterialFormEnum(str, Enum):
     SHEET = "Лист"
     COIL = "Рулон"
     STRIP = "Штрипс"
 
-class MaterialTypeEnum(str, PyEnum):
+class MaterialTypeEnum(str, Enum):
     ALUMINIUM = "Алюминий"
     STEEL = "Сталь"
     STAINLESS_STEEL = "Нержавеющая сталь"
     ZINC = "Оцинковка"
     POLYMER = "Полимер"
 
-class MaterialThicknessEnum(str, PyEnum):
+class MaterialThicknessEnum(str, Enum):
     ZERO_FIVE = "0.5мм"
     ZERO_SEVEN = "0.7мм"
     ONE = "1.0мм"
@@ -90,12 +88,12 @@ class MaterialThicknessEnum(str, PyEnum):
     TWO = "2.0мм"
     THREE = "3.0мм"
 
-class UrgencyEnum(str, PyEnum):
+class UrgencyEnum(str, Enum):
     LOW = "Низкая"
     MEDIUM = "Нормальная"
     HIGH = "Высокая"
 
-class StatusEnum(str, PyEnum):
+class StatusEnum(str, Enum):
     NEW = "Новая"
     IN_WORK = "В работе"
     COMPLETED = "Выполнена"
@@ -134,7 +132,7 @@ class User(Base):
     telegram = Column(String(50), nullable=True, unique=True)
     username = Column(String(50), nullable=False, unique=True)
     password = Column(String(60), nullable=False)
-    user_type = Column(Enum(UserTypeEnum), nullable=False)
+    user_type = Column(UserTypeEnum, nullable=False)
     is_active = Column(Boolean, default=True)
     # Связь Many-to-Many с Task (Ответственные)
     tasks = relationship("Task", secondary=task_responsible_association, back_populates="responsible_users")
@@ -147,11 +145,10 @@ class Bid(Base):
     id = Column(Integer, primary_key=True, index=True)
     task_number = Column(String(50), nullable=True)
     customer_id = Column(Integer, ForeignKey("customer.id"), nullable=False)
-    manager = Column(Enum(ManagerEnum), nullable=False)
+    manager = Column(ManagerEnum, nullable=False)
     files = relationship("Files", back_populates="bid", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="bid", cascade="all, delete-orphan")
     customer = relationship("Customer", back_populates="bid")
-
 
 # Task Table
 class Task(Base):
@@ -161,16 +158,14 @@ class Task(Base):
     product_id = Column(Integer, ForeignKey("product.id", ondelete="CASCADE"), nullable=False)
     material_id = Column(Integer, ForeignKey("material.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Integer, nullable=True)
-    urgency = Column(Enum(UrgencyEnum), nullable=False)
-    status = Column(Enum(StatusEnum), default="NEW")
+    urgency = Column(UrgencyEnum, nullable=False)
+    status = Column(StatusEnum, default="NEW")
     waste = Column(String(50), nullable=True)
     weight = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
-
     # One-to-Many связи
     sheets = relationship("Sheets", back_populates="task", cascade="all, delete-orphan")
-    
     bid = relationship("Bid", back_populates="tasks")
     product = relationship("Product", back_populates="tasks", cascade="all, delete-orphan", single_parent=True)
     material = relationship("Material", back_populates="tasks", cascade="all, delete-orphan", single_parent=True)
@@ -178,14 +173,13 @@ class Task(Base):
     comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
     workshops = relationship("TaskWorkshop", back_populates="task", cascade="all, delete-orphan")
     # Many-to-Many связи
-   
     responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks")
 
 # Workshop Table
 class Workshop(Base):
     __tablename__ = "workshop"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(Enum(WorkshopEnum), nullable=False)
+    name = Column(WorkshopEnum, nullable=False)
     # Связь Many-to-Many с Task
     task_workshops = relationship("TaskWorkshop", back_populates="workshop", cascade="all, delete-orphan")
     users = relationship("User", secondary=user_workshop_association, back_populates="workshops")
@@ -193,12 +187,10 @@ class Workshop(Base):
 # TaskWorkshop Table
 class TaskWorkshop(Base):
     __tablename__ = "task_workshops"
-
     id = Column(Integer, primary_key=True, index=True)
     task_id = Column(Integer, ForeignKey("task.id", ondelete="CASCADE"))
     workshop_id = Column(Integer, ForeignKey("workshop.id", ondelete="CASCADE"))
-    status = Column(Enum(StatusEnum), default="ON_HOLD")  # Статус выполнения в цехе
-
+    status = Column(StatusEnum, default="ON_HOLD")  # Статус выполнения в цехе
     task = relationship("Task", back_populates="workshops")
     workshop = relationship("Workshop", back_populates="task_workshops")
     
@@ -213,7 +205,7 @@ class Customer(Base):
 class Product(Base):
     __tablename__ = "product"
     id = Column(Integer, primary_key=True, index=True)
-    type = Column(Enum(ProductTypeEnum), nullable=False)
+    type = Column(ProductTypeEnum, nullable=False)
     tasks = relationship("Task", back_populates="product", uselist=False)
     profile = relationship("Profile", back_populates="product", cascade="all, delete-orphan")
     klamer = relationship("Klamer", back_populates="product", cascade="all, delete-orphan")
@@ -227,22 +219,16 @@ class Profile(Base):
     __tablename__ = "profile"
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("product.id"))
-    profile_type_id = Column(Integer, ForeignKey("profile_type.id"), nullable=False)
+    profile_type = Column(ProfileTypeEnum, nullable=False)
     length = Column(Integer, nullable=False)
     product = relationship("Product", back_populates="profile")
-    profile_type = relationship("ProfileType")
-
-class ProfileType(Base):
-    __tablename__ = "profile_type"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), unique=True, nullable=False)
 
 # Klamer Table
 class Klamer(Base):
     __tablename__ = "klamer"
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("product.id"))
-    type = Column(Enum(KlamerTypeEnum), nullable=False)
+    type = Column(KlamerTypeEnum, nullable=False)
     product = relationship("Product", back_populates="klamer")
 
 # Bracket Table
@@ -270,7 +256,7 @@ class Cassette(Base):
     __tablename__ = "cassette"
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("product.id"))
-    cassette_type = Column(Enum(CassetteTypeEnum), nullable=False)
+    cassette_type = Column(CassetteTypeEnum, nullable=False)
     description = Column(String(255), nullable=True)
     product = relationship("Product", back_populates="cassette")
 
@@ -289,46 +275,23 @@ class LinearPanel(Base):
 class Material(Base):
     __tablename__ = "material"
     id = Column(Integer, primary_key=True, index=True)
-    form = Column(Enum(MaterialFormEnum), nullable=False)
-    type = Column(Enum(MaterialTypeEnum), nullable=False)
-    thickness = Column(Enum(MaterialThicknessEnum), nullable=False)
-    color_id = Column(Integer, ForeignKey("material_color.id"), nullable=True)
+    form = Column(MaterialFormEnum, nullable=False)
+    type = Column(MaterialTypeEnum, nullable=False)
+    thickness = Column(MaterialThicknessEnum, nullable=False)
+    color = Column(String(50), nullable=True)
     painting = Column(Boolean, default=False)
     tasks = relationship("Task", back_populates="material")
-    color = relationship("MaterialColor", back_populates="materials")
-
-# MaterialColor Table
-class MaterialColor(Base):
-    __tablename__ = "material_color"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), nullable=False, unique=True)
-    materials = relationship("Material", back_populates="color", passive_deletes=True)
-
 
 # Additional Tables
 class Sheets(Base):
     __tablename__ = "sheets"
     id = Column(Integer, primary_key=True, index=True)
     task_id = Column(Integer, ForeignKey("task.id"), nullable=False)  # Привязываем к Task
-    width_sheet = Column(Integer, ForeignKey("sheet_width.id"), nullable=False)
-    length_sheet = Column(Integer, ForeignKey("sheet_length.id"), nullable=False )
+    width = Column(Integer, nullable=False)
+    length = Column(Integer, nullable=False )
     quantity = Column(Integer, nullable=False)
     # Обратная связь One-to-Many
     task = relationship("Task", back_populates="sheets")
-    width = relationship("SheetWidth", back_populates="sheets")
-    length = relationship("SheetLength", back_populates="sheets")
-
-class SheetWidth(Base):
-    __tablename__ = "sheet_width"
-    id = Column(Integer, primary_key=True, index=True)
-    width = Column(String(50), nullable=False, unique=True)
-    sheets = relationship("Sheets", back_populates="width")
-
-class SheetLength(Base):
-    __tablename__ = "sheet_length"
-    id = Column(Integer, primary_key=True, index=True)
-    length = Column(String(50), nullable=False, unique=True)
-    sheets = relationship("Sheets", back_populates="length")
 
 class Files(Base):
     __tablename__ = "files"
@@ -336,7 +299,6 @@ class Files(Base):
     bid_id = Column(Integer, ForeignKey("bid.id"), nullable=False)  # Привязываем к Task
     file_name = Column(String(255), nullable=False)
     file_path = Column(String, nullable=False)
-
     # Обратная связь One-to-Many
     bid = relationship("Bid", back_populates="files")
 
@@ -347,11 +309,8 @@ class Comment(Base):
     comment = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_read = Column(Boolean, default=False)
-
-
     # One-to-Many связь с Task
     task = relationship("Task", back_populates="comments")
-
     # Many-to-Many связь с User
     users = relationship("User", secondary=comment_user_association, back_populates="comments")
 

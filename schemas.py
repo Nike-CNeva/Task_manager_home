@@ -3,42 +3,7 @@ from typing import Optional, List, Dict, Any
 from enum import Enum
 from datetime import datetime
 
-
-class UserTypeEnum(str, Enum):
-    ADMIN = "Администратор"
-    ENGINEER = "Инженер"
-    OPERATOR = "Оператор"
-    SUPERVISER = "Старший смены"
-
-class WorkshopEnum(str, Enum):
-    PROFILE = "Прокат профилей"
-    KLAMER = "Прокат клямеров"
-    BRACKET = "Прокат кронштейнов"
-    EXTENSION_BRACKET = "Гибка удлинителей кронштейнов"
-    ENGINEER = "Инженер"
-    BENDING = "Гибка"
-    CUTTING = "Резка"
-    COORDINATE_PUNCHING = "Координатка"
-    PAINTING = "Покраска"
-
-class StatusEnum(str, Enum):
-    NEW = "Новая"
-    IN_WORK = "В работе"
-    COMPLETED = "Выполнена"
-    CANCELED = "Отменена"
-    ON_HOLD = "На удержании"
-
-class ProductTypeEnum(str, Enum):
-    PROFILE = "Профиля"
-    KLAMER = "Клямера"
-    BRACKET = "Кронштейны"
-    EXTENSION_BRACKET = "Удлинители кронштейнов"
-    CASSETTE = "Кассеты"
-    FACING = "Фасонка"
-    LINEAR_PANEL = "Линеарные панели"
-    SHEET = "Листы"
-    WALL_PANEL = "Стеновые панели(Продэкс)"
-    OTHER = "Другое"
+from models import ProductTypeEnum, StatusEnum, UserTypeEnum, WorkshopEnum
 
 
 class UserBase(BaseModel):
@@ -52,19 +17,6 @@ class UserBase(BaseModel):
     user_type: UserTypeEnum = Field(..., description="Тип пользователя")
     is_active: bool = Field(True, description="Активен ли пользователь")
 
-    @validator("username")
-    def validate_username(cls, value):
-        if len(value) < 3:
-            raise ValueError("Имя пользователя должно содержать не менее 3 символов")
-        return value
-    
-    # Дополнительный валидатор, чтобы разрешить пустую строку вместо None
-    @field_validator("email", "telegram", mode="before")
-    @classmethod
-    def empty_string_to_none(cls, v):
-        if isinstance(v, str) and v.strip() == "":
-            return None
-        return v
     
 class UserRead(UserBase):
     id: int = Field(..., description="ID пользователя")

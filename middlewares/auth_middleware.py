@@ -35,7 +35,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
         else:
             # Если нет токена, проверяем путь
-            if request.url.path in ["/", "/login"]:
+            if request.url.path in ["/", "/login", "/docs", "/redoc", "/openapi.json"]:
                 return await call_next(request)
             print("❌ Токен не передан, доступ запрещён")
             request.state.user_id = None
