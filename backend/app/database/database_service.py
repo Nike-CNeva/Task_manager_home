@@ -3,9 +3,10 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from fastapi import HTTPException
 from typing import List, TypeVar, Type, Optional
-from backend.app.models.models import Base
+from backend.app.database.database import Base
 
-T = TypeVar('T', bound=Base) # type: ignore
+
+T = TypeVar('T', bound=Base) 
 
 
 class DatabaseService:

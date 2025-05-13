@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from alembic import command
 from alembic.config import Config
 from backend.app.core.settings import settings
@@ -27,7 +27,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # 📦 Базовый класс для моделей
 # ---------------------------
 # Создаем базовый класс для моделей SQLAlchemy
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 # Функция для получения сессии БД
 def get_db():
