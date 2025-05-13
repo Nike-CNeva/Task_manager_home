@@ -7,7 +7,7 @@ from .enums import ProductTypeEnum, ProfileTypeEnum, KlamerTypeEnum, CassetteTyp
 class Product(Base):
     __tablename__ = "product"
     id = Column(Integer, primary_key=True, index=True)
-    type = Column(Enum(ProductTypeEnum), nullable=False)
+    type = Column(Enum(ProductTypeEnum, name="product_type_enum"), nullable=False)
     tasks = relationship("Task", back_populates="product", uselist=False)
     profile = relationship("Profile", back_populates="product", cascade="all, delete-orphan")
     klamer = relationship("Klamer", back_populates="product", cascade="all, delete-orphan")

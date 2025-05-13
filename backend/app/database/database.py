@@ -1,39 +1,36 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from alembic import command
-from alembic.config import Config
+from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from backend.app.core.settings import settings
 
 # ---------------------------
 # ⚙️ Параметры подключения
 # ---------------------------
-
-# 🔽 Адрес базы данных
-# Пример для SQLite (тестовая локальная база), позже можно заменить на PostgreSQL или MySQL
-SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL  # Убедитесь, что используете правильный URL для асинхронного подключения
 
 # ---------------------------
-# 🚀 Создание движка БД
+# 🚀 Создание асинхронного движка БД
 # ---------------------------
-# Создаем движок SQLAlchemy, который будет управлять подключением к базе данных
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# Используем create_async_engine для асинхронного подключения
+engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=True)
 
 # ---------------------------
-# 🧠 Создание фабрики сессий
+# 🧠 Создание фабрики асинхронных сессий
 # ---------------------------
-# Создаем фабрику сессий, которая будет генерировать сессии для работы с БД
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Здесь используем AsyncSession для работы с асинхронной сессией
+AsyncSessionLocal = async_sessionmaker(
+    class_=AsyncSession,  # Указываем, что сессии должны быть асинхронными
+    expire_on_commit=False
+)
+
 # ---------------------------
 # 📦 Базовый класс для моделей
 # ---------------------------
-# Создаем базовый класс для моделей SQLAlchemy
 class Base(DeclarativeBase):
     pass
 
-# Функция для получения сессии БД
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Функция для получения асинхронной сессии БД
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        yield session
