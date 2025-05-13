@@ -1,0 +1,57 @@
+# === Общие правила ===
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*.db
+.env
+.venv/
+venv/
+*.sqlite3
+
+# === IDE ===
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# === Python ===
+dist/
+build/
+*.egg-info/
+
+# === Alembic ===
+alembic/versions/*.pyc
+
+# === Node.js (frontend) ===
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.cache/
+frontend/.npm/
+frontend/.output/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Логи ===
+*.log
+
+# === Тесты / покрытия ===
+htmlcov/
+coverage.xml
+.tox/
+.pytest_cache/
+nosetests.xml
+.junit.xml
+
+# === Docker / CI (если будешь использовать) ===
+*.pid
+docker-compose.override.yml
+*.tar
+*.gz
+*.bak
+
+# === Firebase (если временно используешь) ===
+firebase-debug.log
