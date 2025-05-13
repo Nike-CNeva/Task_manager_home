@@ -1,68 +1,55 @@
 from typing import List, Dict, Any
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
-from backend.app.models.models import (
-    Bid,
-    CassetteTypeEnum,
-    Files,
-    KlamerTypeEnum,
-    ManagerEnum,
-    Material,
-    Product,
-    ProfileTypeEnum,
-    Sheets,
-    StatusEnum,
-    Task,
-    TaskWorkshop,
-    UrgencyEnum,
-    User,
-    Workshop,
-    Customer
-)
+from backend.app.models.task import Task, TaskWorkshop
+from backend.app.models.user import User
+from backend.app.models.workshop import Workshop
 from services.user_service import get_user_workshop
-from backend.app.database.database_service import DatabaseService
+from backend.app.database.database_service import AsyncDatabaseService
 from backend.app.core.settings import settings
-from backend.app.schemas.schemas import BidCreateRequest, TaskCreateRequest
 import logging
 from services import file_service
 
 logger = logging.getLogger(__name__)
 
-
-def get_tasks_list(user: User, db: Session) -> List[Task]:
+async def get_tasks_list(user: User, db: AsyncSession) -> List[Task]:
     """Получает список задач, доступных пользователю."""
-    db_service = DatabaseService(db)
     user_workshops = get_user_workshop(user)
 
-    tasks_query = (
-        db.query(Task)
-        .join(TaskWorkshop, Task.id == TaskWorkshop.task_id)  # Явное соединение
-        .join(Workshop, Workshop.id == TaskWorkshop.workshop_id)  # Присоединение цехов
-        .filter(Workshop.name.in_(user_workshops))  # Фильтр по доступным цехам
+    # Переписываем запрос с использованием асинхронных методов
+    query = (
+        select(Task)
+        .join(TaskWorkshop, Task.id == TaskWorkshop.task_id)
+        .join(Workshop, Workshop.id == TaskWorkshop.workshop_id)
+        .filter(Workshop.name.in_(user_workshops))
     )
 
-    return tasks_query.all()
+    result = await db.execute(query)
+    tasks = result.scalars().all()  # Получаем результат в виде списка
+
+    return tasks
 
 
-def get_task_by_id(task_id: int, db: Session) -> Task:
+async def get_task_by_id(task_id: int, db: AsyncSession) -> Task:
     """Получает детальную информацию о задаче."""
-    db_service = DatabaseService(db)
-    task = db_service.get_by_id(Task, task_id)
+    db_service = AsyncDatabaseService(db)
+    task = await db_service.get_by_id(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Задача не найдена")
     return task
 
 
 async def create_bid_with_tasks(
-    bid_info: BidCreateRequest, files: List[UploadFile], db: Session, current_user: User
+    bid_info: BidCreateRequest, files: List[UploadFile], db: AsyncSession, current_user: User
 ) -> Dict[str, Any]:
     """
     Создает заявку и связанные с ней задачи.
     """
-    db_service = DatabaseService(db)
+    db_service = AsyncDatabaseService(db)
 
     # Проверяем, существует ли заказчик
-    customer = db_service.get_by_id(Customer, bid_info.customer_id)
+    customer = await db_service.get_by_id(Customer, bid_info.customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Заказчик не найден")
 
@@ -71,17 +58,17 @@ async def create_bid_with_tasks(
         "customer_id": bid_info.customer_id,
         "manager": bid_info.manager,
     }
-    bid = db_service.create(Bid, bid_data)
+    bid = await db_service.create(Bid, bid_data)
 
     # Создаем задачи для заявки
     for task_info in bid_info.tasks:
         # Проверяем, существует ли продукт
-        product = db_service.get_by_field(Product, "type", task_info.product_name)
+        product = await db_service.get_by_field(Product, "type", task_info.product_name)
         if not product:
             raise HTTPException(status_code=404, detail=f"Продукт {task_info.product_name} не найден")
 
         # Проверяем, существует ли материал
-        material = db_service.get_by_field(Material, "type_id", task_info.material_type)
+        material = await db_service.get_by_field(Material, "type_id", task_info.material_type)
         if not material:
             raise HTTPException(status_code=404, detail=f"Материал {task_info.material_type} не найден")
 
@@ -95,7 +82,7 @@ async def create_bid_with_tasks(
             "waste": task_info.material_color,
             "weight": task_info.material_thickness,
         }
-        task = db_service.create(Task, task_data)
+        task = await db_service.create(Task, task_data)
 
     # Сохраняем файлы, если они есть
     if files:
@@ -105,8 +92,8 @@ async def create_bid_with_tasks(
     return {"bid_id": bid.id, "message": "Заявка и задачи успешно созданы"}
 
 
-def create_task(
-    db: Session,
+async def create_task(
+    db: AsyncSession,
     bid_id: int,
     product_id: int,
     material_id: int,
@@ -115,17 +102,17 @@ def create_task(
     status: str,
     waste: str,
     weight: str,
-    responsible_user_ids: list,
-    workshop_ids: list,
-    file_names: list,
-    sheet_data: list,
+    responsible_user_ids: List[int],
+    workshop_ids: List[int],
+    file_names: List[str],
+    sheet_data: List[Dict[str, Any]],
 ) -> Task:
     """Создает новую задачу."""
-    db_service = DatabaseService(db)
+    db_service = AsyncDatabaseService(db)
     # Проверяем существование связанных данных
-    bid = db_service.get_by_id(Bid, bid_id)
-    product = db_service.get_by_id(Product, product_id)
-    material = db_service.get_by_id(Material, material_id)
+    bid = await db_service.get_by_id(Bid, bid_id)
+    product = await db_service.get_by_id(Product, product_id)
+    material = await db_service.get_by_id(Material, material_id)
 
     if not bid or not product or not material:
         raise HTTPException(
@@ -144,17 +131,17 @@ def create_task(
         "waste": waste,
         "weight": weight,
     }
-    new_task = db_service.create(Task, new_task_data)
+    new_task = await db_service.create(Task, new_task_data)
 
     # Добавляем связь с ответственными пользователями
     if responsible_user_ids:
-        db_service.add_relation(
+        await db_service.add_relation(
             Task, new_task.id, "responsible_users", User, responsible_user_ids
         )
 
     # Добавляем связь с мастерскими
     if workshop_ids:
-        db_service.add_relation(
+        await db_service.add_relation(
             Task, new_task.id, "workshops", Workshop, workshop_ids
         )
 
@@ -165,7 +152,7 @@ def create_task(
             "file_name": file_name,
             "file_path": str(settings.UPLOAD_DIR / str(new_task.id) / file_name),
         }
-        db_service.create(Files, new_file_data)
+        await db_service.create(Files, new_file_data)
 
     # Сохраняем данные для Sheets (при необходимости)
     for sheet in sheet_data:
@@ -175,22 +162,22 @@ def create_task(
             "length_sheet": sheet["length_id"],
             "quantity": sheet["quantity"],
         }
-        db_service.create(Sheets, new_sheet_data)
+        await db_service.create(Sheets, new_sheet_data)
 
     return new_task
 
 
-def get_products(db: Session) -> list[dict]:
+async def get_products(db: AsyncSession) -> List[Dict[str, Any]]:
     """Получает список продуктов."""
-    db_service = DatabaseService(db)
-    products = db_service.get_all(Product)
+    db_service = AsyncDatabaseService(db)
+    products = await db_service.get_all(Product)
     return [{"id": str(item.id), "value": item.type.value} for item in products]
 
 
-def get_types(db: Session) -> tuple[list[str], list[str], list[str], list[str]]:
+async def get_types(db: AsyncSession) -> tuple[List[str], List[str], List[str], List[str]]:
     """Получает список типов."""
     managers = [managers.value for managers in ManagerEnum]
-    db_service = DatabaseService(db)
+    db_service = AsyncDatabaseService(db)
     profile_values = [profile.name for profile in ProfileTypeEnum]
     klamer_types = [klamer_types.value for klamer_types in KlamerTypeEnum]
     kassete_types = [kassete_types.value for kassete_types in CassetteTypeEnum]

@@ -5,7 +5,6 @@ from routers import users, tasks, files, comments, auth, home
 from backend.app.core.settings import settings
 from middlewares.auth_middleware import AuthMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.utils import get_openapi
 
 app = FastAPI(
     title="Система управления задачами для производства",
@@ -32,34 +31,5 @@ app.include_router(files.router, prefix="/files", tags=["Файлы"])
 app.include_router(comments.router, prefix="/comments", tags=["Комментарии"])
 app.include_router(auth.router, tags=["Авторизация"])
            
-# Переопределим схему OpenAPI, чтобы добавить авторизацию
-def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
-
-    openapi_schema = get_openapi(
-        title="My API",
-        version="1.0.0",
-        description="Документация с авторизацией",
-        routes=app.routes,
-    )
-
-    openapi_schema["components"]["securitySchemes"] = {
-        "BearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT"
-        }
-    }
-
-    # По умолчанию применяем BearerAuth ко всем ручкам
-    for path in openapi_schema["paths"].values():
-        for method in path.values():
-            method.setdefault("security", [{"BearerAuth": []}])
-
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
-
-app.openapi = custom_openapi
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

@@ -22,6 +22,7 @@ class UserRead(UserBase):
 
 
 class UserSaveForm(UserBase):
+    id: int
     password: Optional[str] = Field(None, description="Пароль пользователя")
     workshops: List[WorkshopEnum] = Field(..., description="Список цехов")
 

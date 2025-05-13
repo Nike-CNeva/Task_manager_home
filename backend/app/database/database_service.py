@@ -1,113 +1,112 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 from fastapi import HTTPException
-from typing import List, TypeVar, Type, Optional
-from backend.app.database.database import Base
+from typing import Any, List, Sequence, TypeVar, Type, Optional
+from typing import Protocol, runtime_checkable
 
+@runtime_checkable
+class HasID(Protocol):
+    id: Any  # Mapped[int] — заменяем на Any, чтобы избежать проблем в Protocol
 
-T = TypeVar('T', bound=Base) 
+T = TypeVar('T', bound=HasID)
 
-
-class DatabaseService:
-    def __init__(self, db: Session):
+class AsyncDatabaseService:
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def get_all(self, model: Type[T], skip: int = 0, limit: int = 100) -> List[T]:
-        """Получает все записи из таблицы."""
+    async def get_all(self, model: Type[T], skip: int = 0, limit: int = 100) -> Sequence[T]:
         try:
-            return self.db.query(model).offset(skip).limit(limit).all()
+            result = await self.db.execute(
+                select(model).offset(skip).limit(limit)
+            )
+            return result.scalars().all()
         except SQLAlchemyError as e:
-            self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    def get_by_id(self, model: Type[T], id: int) -> Optional[T]:
-        """Получает запись по ID."""
+    async def get_by_id(self, model: Type[T], id: int) -> Optional[T]:
         try:
-            return self.db.query(model).filter(model.id == id).first()
+            result = await self.db.execute(select(model).where(model.id == id))
+            return result.scalars().first()
         except SQLAlchemyError as e:
-            self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    def get_by_field(self, model: Type[T], field_name: str, field_value: str) -> Optional[T]:
-        """Получает запись по значению поля."""
+    async def get_by_field(self, model: Type[T], field_name: str, field_value: Any) -> Optional[T]:
         try:
-            field = getattr(model, field_name)
-            return self.db.query(model).filter(field == field_value).first()
+            field: InstrumentedAttribute[Any] = getattr(model, field_name)
+            result = await self.db.execute(select(model).where(field == field_value))
+            return result.scalars().first()
         except SQLAlchemyError as e:
-            self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    def create(self, model: Type[T], data: dict) -> T:
-        """Создает новую запись."""
+    async def create(self, model: Type[T], data: dict[str, Any]) -> T:
         try:
             db_item = model(**data)
             self.db.add(db_item)
-            self.db.commit()
-            self.db.refresh(db_item)
+            await self.db.commit()
+            await self.db.refresh(db_item)
             return db_item
         except IntegrityError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(status_code=400, detail=f"Integrity error: {str(e)}")
         except SQLAlchemyError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    def update(self, model: Type[T], id: int, data: dict) -> Optional[T]:
-        """Обновляет запись по ID."""
+    async def update(self, model: Type[T], id: int, data: dict[str, Any]) -> Optional[T]:
         try:
-            db_item = self.get_by_id(model, id)
+            db_item = await self.get_by_id(model, id)
             if db_item:
                 for key, value in data.items():
                     setattr(db_item, key, value)
-                self.db.commit()
-                self.db.refresh(db_item)
+                await self.db.commit()
+                await self.db.refresh(db_item)
             return db_item
         except SQLAlchemyError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    def delete(self, model: Type[T], id: int) -> bool:
-        """Удаляет запись по ID."""
+    async def delete(self, model: Type[T], id: int) -> bool:
         try:
-            db_item = self.get_by_id(model, id)
+            db_item = await self.get_by_id(model, id)
             if db_item:
-                self.db.delete(db_item)
-                self.db.commit()
+                await self.db.delete(db_item)
+                await self.db.commit()
                 return True
             return False
         except SQLAlchemyError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    def add_relation(self, parent_model: Type[T], parent_id: int, relation_name: str, child_model: Type[T], child_ids: List[int]):
-        """Добавляет связь между родительской и дочерними моделями."""
+    async def add_relation(self, parent_model: Type[T], parent_id: int, relation_name: str, child_model: Type[T], child_ids: List[int]) -> None:
         try:
-            parent_item = self.get_by_id(parent_model, parent_id)
+            parent_item = await self.get_by_id(parent_model, parent_id)
             if not parent_item:
                 raise ValueError(f"Parent item with id {parent_id} not found")
 
             relation = getattr(parent_item, relation_name)
-            child_items = self.db.query(child_model).filter(child_model.id.in_(child_ids)).all()
+            result = await self.db.execute(select(child_model).where(child_model.id.in_(child_ids)))
+            child_items = result.scalars().all()
             relation.extend(child_items)
-            self.db.commit()
+            await self.db.commit()
         except SQLAlchemyError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    def remove_relation(self, parent_model: Type[T], parent_id: int, relation_name: str, child_model: Type[T], child_ids: List[int]):
-        """Удаляет связь между родительской и дочерними моделями."""
+    async def remove_relation(self, parent_model: Type[T], parent_id: int, relation_name: str, child_model: Type[T], child_ids: List[int]) -> None:
         try:
-            parent_item = self.get_by_id(parent_model, parent_id)
+            parent_item = await self.get_by_id(parent_model, parent_id)
             if not parent_item:
                 raise ValueError(f"Parent item with id {parent_id} not found")
 
             relation = getattr(parent_item, relation_name)
-            child_items = self.db.query(child_model).filter(child_model.id.in_(child_ids)).all()
+            result = await self.db.execute(select(child_model).where(child_model.id.in_(child_ids)))
+            child_items = result.scalars().all()
             for child in child_items:
                 if child in relation:
                     relation.remove(child)
-            self.db.commit()
+            await self.db.commit()
         except SQLAlchemyError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
