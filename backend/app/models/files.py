@@ -1,12 +1,13 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, String
 from backend.app.database.database import Base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+
 
 class Files(Base):
     __tablename__ = "files"
-    id = Column(Integer, primary_key=True, index=True)
-    bid_id = Column(Integer, ForeignKey("bid.id"), nullable=False)  # Привязываем к Task
-    file_name = Column(String(255), nullable=False)
-    file_path = Column(String, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    bid_id: Mapped[int] = mapped_column(ForeignKey("bid.id"), nullable=False)
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(255), nullable=False)
     # Обратная связь One-to-Many
     bid = relationship("Bid", back_populates="files")

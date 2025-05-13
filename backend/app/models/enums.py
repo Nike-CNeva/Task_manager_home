@@ -1,6 +1,6 @@
-from enum import Enum as PyEnum
+from enum import Enum 
 
-class ProductTypeEnum(str, PyEnum):
+class ProductTypeEnum(str, Enum):
     PROFILE = "Профиля"
     KLAMER = "Клямера"
     BRACKET = "Кронштейны"
@@ -11,13 +11,13 @@ class ProductTypeEnum(str, PyEnum):
     SHEET = "Листы"
     WALL_PANEL = "Стеновые панели(Продэкс)"
 
-class UserTypeEnum(str, PyEnum):
+class UserTypeEnum(str, Enum):
     ADMIN = "Администратор"
     ENGINEER = "Инженер"
     OPERATOR = "Оператор"
     SUPERVISER = "Старший смены"
  
-class ProfileTypeEnum(str, PyEnum):
+class ProfileTypeEnum(str, Enum):
     G40X40 = "Г-образный 40х40"
     G40X60 = "Г-образный 40х60"
     G50X50 = "Г-образный 50х50"
@@ -29,7 +29,7 @@ class ProfileTypeEnum(str, PyEnum):
     PVSH = "ПВШ"
     PNU = "ПНУ"
 
-class WorkshopEnum(str, PyEnum):
+class WorkshopEnum(str, Enum):
     PROFILE = "Прокат профилей"
     KLAMER = "Прокат клямеров"
     BRACKET = "Прокат кронштейнов"
@@ -40,7 +40,7 @@ class WorkshopEnum(str, PyEnum):
     COORDINATE_PUNCHING = "Координатка"
     PAINTING = "Покраска"
 
-class ManagerEnum(str, PyEnum):
+class ManagerEnum(str, Enum):
     NOVIKOV = "Новиков"
     SEMICHEV = "Семичев С."
     PTICHKINA = "Птичкина"
@@ -48,12 +48,12 @@ class ManagerEnum(str, PyEnum):
     GAVRILOVEC = "Гавриловец"
     SEMICHEV_YOUNGER = "Семичев Д."
 
-class KlamerTypeEnum(str, PyEnum):
+class KlamerTypeEnum(str, Enum):
     IN_LINE = "Рядный"
     STARTING = "Стартовый"
     ANGULAR = "Угловой"
 
-class CassetteTypeEnum(str, PyEnum):
+class CassetteTypeEnum(str, Enum):
     KZT_STD = "Зактрытого типа(стандарт)"
     KOT_STD = "Открытого типа(стандарт)"
     KOTVO = "Открытого типа, отв. в вертикальных рустах"
@@ -61,19 +61,19 @@ class CassetteTypeEnum(str, PyEnum):
     KOT = "Открытого типа"
     OTHER = "Другое"
 
-class MaterialFormEnum(str, PyEnum):
+class MaterialFormEnum(str, Enum):
     SHEET = "Лист"
     COIL = "Рулон"
     STRIP = "Штрипс"
 
-class MaterialTypeEnum(str, PyEnum):
+class MaterialTypeEnum(str, Enum):
     ALUMINIUM = "Алюминий"
     STEEL = "Сталь"
     STAINLESS_STEEL = "Нержавеющая сталь"
     ZINC = "Оцинковка"
     POLYMER = "Полимер"
 
-class MaterialThicknessEnum(str, PyEnum):
+class MaterialThicknessEnum(str, Enum):
     ZERO_FIVE = "0.5мм"
     ZERO_SEVEN = "0.7мм"
     ONE = "1.0мм"
@@ -82,12 +82,12 @@ class MaterialThicknessEnum(str, PyEnum):
     TWO = "2.0мм"
     THREE = "3.0мм"
 
-class UrgencyEnum(str, PyEnum):
+class UrgencyEnum(str, Enum):
     LOW = "Низкая"
     MEDIUM = "Нормальная"
     HIGH = "Высокая"
 
-class StatusEnum(str, PyEnum):
+class StatusEnum(str, Enum):
     NEW = "Новая"
     IN_WORK = "В работе"
     COMPLETED = "Выполнена"
