@@ -15,17 +15,6 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "my_super_secret_key"  # Секретный ключ для JWT
     ALGORITHM: str = "HS256"  # Алгоритм для JWT
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # Время жизни токена доступа в минутах
-
-    class Config:
-        env_file = ".env"
-        extra = "forbid"
-        env_file_encoding = "utf-8"
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Преобразуем BASE_DIR и UPLOAD_DIR в Path объекты
-        self.BASE_DIR = Path(self.BASE_DIR).resolve()
-        self.UPLOAD_DIR = self.BASE_DIR / self.UPLOAD_DIR
         
 # Создаем объект настроек
 settings = Settings()
