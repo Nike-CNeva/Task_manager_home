@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from backend.app.models.enums import UserTypeEnum
@@ -12,7 +12,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def get_user_by_id(db: AsyncSession, user_id: int) -> User:
+async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
     """Получает пользователя по ID."""
     db_service = AsyncDatabaseService(db)
     user = await db_service.get_by_id(User, user_id)  # нужно ожидать асинхронный запрос
@@ -20,7 +20,7 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> User:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
     return user
 
-async def get_user_by_username(db: AsyncSession, username: str) -> User | None:
+async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User]:
     """Получает пользователя по логину пользователя или возвращает None."""
     db_service = AsyncDatabaseService(db)
     user = await db_service.get_by_field(User, "username", username)  # нужно ожидать асинхронный запрос
@@ -31,28 +31,28 @@ async def get_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> Sequen
     db_service = AsyncDatabaseService(db)
     return await db_service.get_all(User, skip, limit)  # нужно ожидать асинхронный запрос
 
-async def create_user(db: AsyncSession, user_data: Dict[str, Any], workshop_ids: List[int]) -> User:
+async def create_user(db: AsyncSession, user_data: UserSaveForm, workshop_ids: List[int]) -> User:
     """Создает нового пользователя."""
     db_service = AsyncDatabaseService(db)
 
     # Проверка, существует ли пользователь с таким именем
-    user = await get_user_by_username(db, user_data["username"])  # нужно ожидать асинхронный запрос
+    user = await get_user_by_username(db, user_data.username)  # нужно ожидать асинхронный запрос
     if user:
         raise HTTPException(status_code=400, detail="Пользователь с таким именем уже существует")
 
     # Хешируем пароль
-    hashed_password = get_password_hash(user_data["password"])
+    hashed_password = get_password_hash(user_data.password)
 
     # Преобразуем user_type в Enum
     try:
-        user_type_enum = UserTypeEnum(user_data["user_type"])
+        user_type_enum = UserTypeEnum(user_data.user_type)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Некорректный тип пользователя: {user_data['user_type']}")
+        raise HTTPException(status_code=400, detail=f"Некорректный тип пользователя: {user_data.user_type}")
 
     # Создаем пользователя
     new_user = await db_service.create(User, {
-        "name": user_data["name"],
-        "username": user_data["username"],
+        "name": user_data.name,
+        "username": user_data.username,
         "password": hashed_password,
         "user_type": user_type_enum,
     })
@@ -106,7 +106,9 @@ async def update_user_workshops(db: AsyncSession, user_id: int, new_workshop_ids
     db_service = AsyncDatabaseService(db)
     # Получаем пользователя по ID
     user = await get_user_by_id(db, user_id)  # нужно ожидать асинхронный запрос
-
+    if user is None:
+        raise ValueError(f"Пользователь с ID {user_id} не найден")
+    
     # Получаем текущие объекты Workshop, связанные с пользователем
     current_workshop_ids = {workshop.id for workshop in user.workshops}
     new_workshops: List[int] = []

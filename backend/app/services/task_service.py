@@ -1,11 +1,17 @@
 from typing import List, Dict, Any
-from sqlalchemy import select
+from sqlalchemy import Sequence, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
+from backend.app.models.bid import Bid, Customer
+from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum
+from backend.app.models.files import Files
+from backend.app.models.material import Material, Sheets
+from backend.app.models.product import Product
 from backend.app.models.task import Task, TaskWorkshop
 from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
-from services.user_service import get_user_workshop
+from backend.app.schemas.bid import BidCreateRequest
+from backend.app.services.user_service import get_user_workshop
 from backend.app.database.database_service import AsyncDatabaseService
 from backend.app.core.settings import settings
 import logging
@@ -13,9 +19,9 @@ from services import file_service
 
 logger = logging.getLogger(__name__)
 
-async def get_tasks_list(user: User, db: AsyncSession) -> List[Task]:
+async def get_tasks_list(user: User, db: AsyncSession) -> Sequence[Task]:
     """Получает список задач, доступных пользователю."""
-    user_workshops = get_user_workshop(user)
+    user_workshops = await get_user_workshop(user)
 
     # Переписываем запрос с использованием асинхронных методов
     query = (
@@ -54,7 +60,7 @@ async def create_bid_with_tasks(
         raise HTTPException(status_code=404, detail="Заказчик не найден")
 
     # Создаем заявку
-    bid_data = {
+    bid_data:Dict[str, Any] = {
         "customer_id": bid_info.customer_id,
         "manager": bid_info.manager,
     }
@@ -72,7 +78,7 @@ async def create_bid_with_tasks(
         if not material:
             raise HTTPException(status_code=404, detail=f"Материал {task_info.material_type} не найден")
 
-        task_data = {
+        task_data:Dict[str, Any] = {
             "bid_id": bid.id,
             "product_id": product.id,
             "material_id": material.id,
@@ -87,7 +93,7 @@ async def create_bid_with_tasks(
     # Сохраняем файлы, если они есть
     if files:
         for file in files:
-            await file_service.save_file(task.id, file, "bid_file", db)
+            await file_service.save_file(bid.id, file, "bid_file", db)
 
     return {"bid_id": bid.id, "message": "Заявка и задачи успешно созданы"}
 
@@ -121,7 +127,7 @@ async def create_task(
         )
 
     # Создаем объект задачи
-    new_task_data = {
+    new_task_data:Dict[str, Any] = {
         "bid_id": bid_id,
         "product_id": product_id,
         "material_id": material_id,
@@ -147,7 +153,7 @@ async def create_task(
 
     # Сохраняем файлы для задачи
     for file_name in file_names:
-        new_file_data = {
+        new_file_data:Dict[str, Any] = {
             "task_id": new_task.id,
             "file_name": file_name,
             "file_path": str(settings.UPLOAD_DIR / str(new_task.id) / file_name),
@@ -156,7 +162,7 @@ async def create_task(
 
     # Сохраняем данные для Sheets (при необходимости)
     for sheet in sheet_data:
-        new_sheet_data = {
+        new_sheet_data:Dict[str, Any] = {
             "task_id": new_task.id,
             "width_sheet": sheet["width_id"],
             "length_sheet": sheet["length_id"],
@@ -177,7 +183,6 @@ async def get_products(db: AsyncSession) -> List[Dict[str, Any]]:
 async def get_types(db: AsyncSession) -> tuple[List[str], List[str], List[str], List[str]]:
     """Получает список типов."""
     managers = [managers.value for managers in ManagerEnum]
-    db_service = AsyncDatabaseService(db)
     profile_values = [profile.name for profile in ProfileTypeEnum]
     klamer_types = [klamer_types.value for klamer_types in KlamerTypeEnum]
     kassete_types = [kassete_types.value for kassete_types in CassetteTypeEnum]

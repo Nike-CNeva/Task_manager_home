@@ -1,11 +1,9 @@
 from typing import List
-from fastapi import APIRouter, Depends, Form, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from backend.app.core.dependencies import get_current_user, get_db
 from middlewares.auth_middleware import get_password_hash, verify_password
-from backend.app.models.models import User, UserTypeEnum, Workshop, WorkshopEnum
-from backend.app.schemas.schemas import PasswordChangeRequest, UserBase, UserSaveForm
 from services import user_service
 
 router = APIRouter()
