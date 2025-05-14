@@ -34,3 +34,14 @@ class PasswordChangeRequest(BaseModel):
     
 class UserWithTasks(UserRead):
     tasks: List[TaskRead] = Field(default_factory=list, description="Список задач пользователя")
+
+class UserWithWorkshops(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+    id: int
+    name: str
+    firstname: str
+    username: str
+    email: str
+    telegram: str
+    user_type: str
+    workshops: List[str]

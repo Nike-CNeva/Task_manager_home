@@ -3,36 +3,46 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from backend.app.core.dependencies import get_current_user, get_db
+from backend.app.models.enums import UserTypeEnum
+from backend.app.schemas.user import UserRead, UserSaveForm, UserWithWorkshops
+from sqlalchemy.ext.asyncio import AsyncSession
 from middlewares.auth_middleware import get_password_hash, verify_password
+from backend.app.models.user import User
+from backend.app.models.workshop import Workshop, WorkshopEnum
 from services import user_service
+
+
 
 router = APIRouter()
 
-@router.get("/admin/users")
-def admin_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.get("/admin/users", response_model=List[UserWithWorkshops])
+async def admin_users(db: AsyncSession = Depends(get_db), current_user: UserRead = Depends(get_current_user)):
     if current_user.user_type != UserTypeEnum.ADMIN:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
         
-    users = user_service.get_users(db)
-    users_with_workshops = [{
-        "id": u.id,
-        "name": u.name,
-        "firstname": u.firstname,
-        "username": u.username,
-        "email": u.email,
-        "telegram": u.telegram,
-        "user_type": u.user_type.value,
-        "workshops": [w.name for w in u.workshops]
-    } for u in users]
+    users = await user_service.get_users(db)
+    users_with_workshops = [
+        UserWithWorkshops(
+            id=user.id,
+            name=user.name,
+            firstname=user.firstname,
+            username=user.username,
+            email=user.email,
+            telegram=user.telegram,
+            user_type=user.user_type.value,
+            workshops=[workshop.name for workshop in user.workshops]
+        )
+        for user in users
+    ]
 
-    return JSONResponse(content={"users": users_with_workshops})
+    return users_with_workshops
 
 
-@router.get("/admin/users/create")
-def create_user_form(current_user: User = Depends(get_current_user)):
+@router.get("/admin/users/create", response_model=dict)
+async def create_user_form(current_user: User = Depends(get_current_user)):
     if current_user.user_type != UserTypeEnum.ADMIN:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
-    workshops = [w.value for w in WorkshopEnum]
+    workshops = [workshop.value for workshop in WorkshopEnum]
     roles = [role.value for role in UserTypeEnum]
     return JSONResponse(content={
         "roles": roles,
@@ -40,25 +50,22 @@ def create_user_form(current_user: User = Depends(get_current_user)):
     })
 
 @router.get("/admin/workshops", response_model=List[str])
-def get_workshops(current_user: User = Depends(get_current_user)):
+async def get_workshops(current_user: User = Depends(get_current_user)):
     if current_user.user_type != UserTypeEnum.ADMIN:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
-    return [w.value for w in WorkshopEnum]
+    return [workshop.value for workshop in WorkshopEnum]
 
 @router.post("/admin/users/save")
-def save_user(
+async def save_user(
     form_data: UserSaveForm,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     if current_user.user_type != UserTypeEnum.ADMIN:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
-    # Проверка списка цехов
-    if not isinstance(form_data.workshops, list):
-        raise HTTPException(status_code=400, detail="Цеха должны быть списком")
 
     try:
-        workshop_enums = [WorkshopEnum(w) for w in form_data.workshops]
+        workshop_enums = [WorkshopEnum(workshop) for workshop in form_data.workshops]
     except ValueError:
         raise HTTPException(status_code=400, detail="Некорректные цеха")
 
