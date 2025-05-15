@@ -1,33 +1,36 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.dependencies import get_db
-from backend.app.models.models import Product, ProductTypeEnum, ProfileTypeEnum
-from backend.app.database.database_service import DatabaseService
+from backend.app.database.database_service import AsyncDatabaseService
 from typing import List, Dict, Any
 from fastapi import Depends, HTTPException
 
-from backend.app.schemas.schemas import ProductResponse
+from backend.app.models.enums import ProductTypeEnum, ProfileTypeEnum
+from backend.app.models.product import Product
+from backend.app.schemas.product import ProductResponse
+
+
 
 class ProductService:
-    def __init__(self, db: Session):
-        self.db_service = DatabaseService(db)
+    def __init__(self, db: AsyncSession):
+        self.db_service = AsyncDatabaseService(db)
 
-    def get_product_list(self) -> List[ProductResponse]:
+    async def get_product_list(self) -> List[ProductResponse]:
         """
         Получает список всех продуктов.
         """
-        products = self.db_service.get_all(Product)
+        products = await self.db_service.get_all(Product)
         return [ProductResponse(id=p.id, type=p.type) for p in products]
 
-    def get_product_fields(self, product_id: str) -> List[Dict[str, Any]]:
+    async def get_product_fields(self, product_id: str) -> List[Dict[str, Any]]:
         """
         Получает список полей для конкретного продукта.
         """
-        product = self.db_service.get_by_id(Product, int(product_id))
+        product = await self.db_service.get_by_id(Product, int(product_id))
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
 
         if product.type == ProductTypeEnum.PROFILE:
-            return [{"id": pt.id, "name": pt.name} for pt in ProfileTypeEnum]
+            return [{"id": pt.value, "name": pt.name} for pt in ProfileTypeEnum]
         elif product.type == ProductTypeEnum.KLAMER:
             return [{"id": 1, "name": "Рядный"}, {"id": 2, "name": "Стартовый"}, {"id": 3, "name": "Угловой"}]
         elif product.type == ProductTypeEnum.BRACKET:
@@ -43,5 +46,5 @@ class ProductService:
         else:
             return []
 
-def get_product_service(db: Session = Depends(get_db)) -> ProductService:
+def get_product_service(db: AsyncSession = Depends(get_db)) -> ProductService:
     return ProductService(db)

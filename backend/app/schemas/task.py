@@ -25,7 +25,7 @@ class TaskRead(TaskBase):
 class TaskWithUsers(TaskRead):
     responsible_users: List[UserRead] = Field(default_factory=list, description="Список ответственных пользователей")
 
-class TaskCreateRequest(BaseModel):
+class TaskCreateResponse(BaseModel):
     """
     Схема для создания задачи в рамках заявки.
     """

@@ -1,7 +1,7 @@
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.app.schemas.task import TaskCreateRequest, TaskRead
+from backend.app.schemas.task import TaskCreateResponse, TaskRead
 
 
 class BidBase(BaseModel):
@@ -17,7 +17,7 @@ class BidRead(BidBase):
 class BidWithTasks(BidRead):
     tasks: List[TaskRead] = Field(default_factory=list, description="Список задач в заявке")
 
-class BidCreateRequest(BaseModel):
+class BidCreateResponse(BaseModel):
     """
     Схема для создания заявки.
     """
@@ -25,4 +25,4 @@ class BidCreateRequest(BaseModel):
     manager: str = Field(..., description="Менеджер")
     status: str = Field(..., description="Статус")
     comment: Optional[str] = Field(None, description="Комментарий к заявке")
-    tasks: List[TaskCreateRequest] = Field(..., description="Список задач")
+    tasks: List[TaskCreateResponse] = Field(..., description="Список задач")

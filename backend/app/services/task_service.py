@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from sqlalchemy import Sequence, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
 from backend.app.models.bid import Bid, Customer
@@ -10,7 +10,8 @@ from backend.app.models.product import Product
 from backend.app.models.task import Task, TaskWorkshop
 from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
-from backend.app.schemas.bid import BidCreateRequest
+from backend.app.schemas.bid import BidCreateResponse
+from backend.app.schemas.task import TaskRead
 from backend.app.services.user_service import get_user_workshop
 from backend.app.database.database_service import AsyncDatabaseService
 from backend.app.core.settings import settings
@@ -19,36 +20,34 @@ from services import file_service
 
 logger = logging.getLogger(__name__)
 
-async def get_tasks_list(user: User, db: AsyncSession) -> Sequence[Task]:
+async def get_tasks_list(user: User, db: AsyncSession) -> List[TaskRead]:
     """Получает список задач, доступных пользователю."""
     user_workshops = await get_user_workshop(user)
 
-    # Переписываем запрос с использованием асинхронных методов
     query = (
         select(Task)
         .join(TaskWorkshop, Task.id == TaskWorkshop.task_id)
         .join(Workshop, Workshop.id == TaskWorkshop.workshop_id)
-        .filter(Workshop.name.in_(user_workshops))
+        .where(Workshop.name.in_(user_workshops))
     )
 
     result = await db.execute(query)
-    tasks = result.scalars().all()  # Получаем результат в виде списка
+    tasks = result.scalars().all()
 
-    return tasks
+    return [TaskRead.model_validate(task) for task in tasks]
 
 
-async def get_task_by_id(task_id: int, db: AsyncSession) -> Task:
+async def get_task_by_id(task_id: int, db: AsyncSession) -> TaskRead:
     """Получает детальную информацию о задаче."""
     db_service = AsyncDatabaseService(db)
     task = await db_service.get_by_id(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Задача не найдена")
-    return task
+    return TaskRead.model_validate(task)
 
 
 async def create_bid_with_tasks(
-    bid_info: BidCreateRequest, files: List[UploadFile], db: AsyncSession, current_user: User
-) -> Dict[str, Any]:
+    bid_info: BidCreateResponse, files: List[UploadFile], db: AsyncSession) -> Dict[str, Any]:
     """
     Создает заявку и связанные с ней задачи.
     """
@@ -78,22 +77,11 @@ async def create_bid_with_tasks(
         if not material:
             raise HTTPException(status_code=404, detail=f"Материал {task_info.material_type} не найден")
 
-        task_data:Dict[str, Any] = {
-            "bid_id": bid.id,
-            "product_id": product.id,
-            "material_id": material.id,
-            "quantity": task_info.count,
-            "urgency_id": UrgencyEnum.MEDIUM,  # Устанавливаем срочность по умолчанию
-            "status_id": StatusEnum.NEW,  # Устанавливаем статус по умолчанию
-            "waste": task_info.material_color,
-            "weight": task_info.material_thickness,
-        }
-        task = await db_service.create(Task, task_data)
 
     # Сохраняем файлы, если они есть
     if files:
         for file in files:
-            await file_service.save_file(bid.id, file, "bid_file", db)
+            await file_service.save_file(bid.id, file, db)
 
     return {"bid_id": bid.id, "message": "Заявка и задачи успешно созданы"}
 
