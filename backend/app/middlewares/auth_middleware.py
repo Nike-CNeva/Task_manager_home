@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta
-from typing import Dict, Optional
-from fastapi.responses import RedirectResponse
+from datetime import datetime, timedelta, timezone
+import logging
+from typing import Any, Awaitable, Callable, Dict, Optional, Union
 from jose import jwt, JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import APIRouter, Form, Request, HTTPException, Response, status, Depends
@@ -8,7 +8,9 @@ from passlib.context import CryptContext
 from backend.app.core.dependencies import get_db
 from backend.app.core.settings import settings
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
 
 router = APIRouter()
 
@@ -18,57 +20,55 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # В зависимости от того, где вам нужно проверять токен
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+logger = logging.getLogger("auth_middleware")
+
+PUBLIC_PATHS = {"/", "/login", "/docs", "/redoc", "/openapi.json"}
+
 class AuthMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware для проверки авторизации через JWT.
-    """
-    async def dispatch(self, request: Request, call_next):
-        access_token = request.headers.get("Authorization")
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        auth_header = request.headers.get("Authorization")
         token_part = None
-        
-        if access_token:
-            if access_token.startswith("Bearer "):
-                token_part = access_token.split(" ", 1)[1]
-            else:
-                print("❌ Неверный формат токена, ожидается 'Bearer <token>'")
-                request.state.user_id = None
+
+        if not auth_header:
+            if request.url.path in PUBLIC_PATHS:
                 return await call_next(request)
-        else:
-            # Если нет токена, проверяем путь
-            if request.url.path in ["/", "/login", "/docs", "/redoc", "/openapi.json"]:
-                return await call_next(request)
-            print("❌ Токен не передан, доступ запрещён")
+            logger.warning("❌ Токен не передан, доступ запрещён")
             request.state.user_id = None
             return Response("Unauthorized", status_code=401)
 
+        if not auth_header.startswith("Bearer "):
+            logger.warning("❌ Неверный формат токена, ожидается 'Bearer <token>'")
+            request.state.user_id = None
+            return await call_next(request)
+
+        token_part = auth_header[len("Bearer "):]
+        logger.debug(f"🔐 Получен access_token: {auth_header}")
+        logger.debug(f"🧩 Token part: {token_part}")
+
         try:
-            print(f"🔐 Получен access_token: {access_token}")
-            print(f"🧩 Token part: {token_part}")
-            payload = decode_access_token(token_part)  # Функция декодирования токена
-            print(f"📦 Распакованный payload: {payload}")
+            payload = decode_access_token(token_part)
+            logger.debug(f"📦 Распакованный payload: {payload}")
             if payload:
                 request.state.user_id = payload.get("user_id")
             else:
-                print("❌ Payload пустой, возможно, decode_access_token() не сработал")
+                logger.warning("❌ Payload пустой")
                 request.state.user_id = None
         except JWTError as e:
-            print(f"❌ Ошибка JWT: {e}")
+            logger.warning(f"❌ Ошибка JWT: {e}")
             request.state.user_id = None
 
-        # Проверяем, если нет user_id, и путь не /login, редиректим на страницу входа
-        if request.state.user_id is None and request.url.path not in ["/", "/login"]:
-            response = Response("Unauthorized", status_code=401)  # Можно настроить редирект или другое сообщение
-            return response  # Возвращаем Response без `await`
+        if request.state.user_id is None and request.url.path not in {"/", "/login"}:
+            return Response("Unauthorized", status_code=401)
 
-        print(f"🔍 Middleware получил запрос: {request.url}")
+        logger.info(f"🔍 Middleware получил запрос: {request.url}")
 
         try:
-            response = await call_next(request)  # Пропускаем запрос дальше
+            response = await call_next(request)
         except Exception as e:
-            print(f"❌ Ошибка в обработчике запроса: {e}")
+            logger.error(f"❌ Ошибка в обработчике запроса: {e}")
             response = Response("Ошибка сервера", status_code=500)
 
-        print(f"✅ Middleware пропустил запрос: {request.url}")
+        logger.info(f"✅ Middleware пропустил запрос: {request.url}")
 
         return response
 
@@ -86,7 +86,7 @@ async def get_password_hash(password: str) -> str:
 # ================================
 # Генерация и проверка JWT токенов
 # ================================
-def create_access_token(data: Dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """
     Создает JWT-токен с заданным сроком действия.
     :param data: Данные для кодирования в токен
@@ -94,12 +94,13 @@ def create_access_token(data: Dict, expires_delta: Optional[timedelta] = None) -
     :return: Закодированный JWT-токен
     """
     to_encode = data.copy()
-    expire = datetime.utcnow() + (timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     token = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    
-    # Вывод токена в консоль
-    
+        
     return token
 
 
@@ -115,17 +116,17 @@ def decode_access_token(token: str):
         return None
 
 # Функция для извлечения токена из cookies
-def get_token_from_cookie(request: Request):
+async def get_token_from_cookie(request: Request) -> str:
     token = request.cookies.get("access_token")  # Получаем токен из куки
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return token
 
 @router.post("/token")
-async def login_for_access_token(response: Response, username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
+async def login_for_access_token(response: Response, username: str = Form(...), password: str = Form(...), db: AsyncSession = Depends(get_db)):
     from services.user_service import get_user_by_username
-    user = get_user_by_username(db, username)
-    if not user or not verify_password(password, user.password):
+    user = await get_user_by_username(db, username)
+    if not user or not await verify_password(password, user.password):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
     # Генерация токена с помощью create_access_token
     payload = {"user_id": user.id}
@@ -135,13 +136,23 @@ async def login_for_access_token(response: Response, username: str = Form(...), 
     return {"access_token": token, "token_type": "bearer"}
 
 @router.get("/validate_token")
-async def validate_token(token: str = Depends(oauth2_scheme)):
-    payload = decode_access_token(token)
-    if payload:
-        return {"valid": True, "user_id": payload.get("user_id"), "username": payload.get("sub")}
-    else:
+async def validate_token(token: str = Depends(oauth2_scheme)) -> Dict[str, Optional[Union[str, int, bool]]]:
+    try:
+        payload = decode_access_token(token)  # если decode_access_token не async, await не нужен
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if payload:
+        return {
+            "valid": True,
+            "user_id": payload.get("user_id"),
+            "username": payload.get("sub")
+        }
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
