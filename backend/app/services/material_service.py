@@ -1,15 +1,16 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.dependencies import get_db
-from backend.app.models.models import MaterialFormEnum, MaterialTypeEnum, MaterialThicknessEnum, ProductTypeEnum
-from backend.app.database.database_service import DatabaseService
-from typing import List, Dict, Any
-from fastapi import Depends, HTTPException
+from backend.app.database.database_service import AsyncDatabaseService
+from typing import Generator, List, Dict, Any
+from fastapi import Depends
+
+from backend.app.models.enums import MaterialFormEnum, MaterialTypeEnum, ProductTypeEnum
 
 class MaterialService:
-    def __init__(self, db: Session):
-        self.db_service = DatabaseService(db)
+    def __init__(self, db: AsyncSession):
+        self.db_service = AsyncDatabaseService(db)
 
-    def get_material_forms(self, product_id: str) -> List[Dict[str, Any]]:
+    async def get_material_forms(self, product_id: str) -> List[Dict[str, Any]]:
         """
         Получает список форм материалов для конкретного продукта.
         """
@@ -18,7 +19,7 @@ class MaterialService:
         else:
             return [{"id": MaterialFormEnum.SHEET.value, "name": MaterialFormEnum.SHEET.value}]
 
-    def get_material_types(self, product_id: str, form: str) -> List[Dict[str, Any]]:
+    async def get_material_types(self, product_id: str, form: str) -> List[Dict[str, Any]]:
         """
         Получает список типов материалов для конкретного продукта и формы.
         """
@@ -52,6 +53,6 @@ class MaterialService:
             ]
         else:
             return []
-
-def get_material_service(db: Session = Depends(get_db)) -> MaterialService:
+        
+def get_material_service(db: AsyncSession = Depends(get_db)) -> Generator[MaterialService, None, None]:
     yield MaterialService(db)
