@@ -1,23 +1,33 @@
-from sqlalchemy.orm import Session
-from backend.app.models.models import Comment
 from typing import List
-from backend.app.database.database_service import DatabaseService
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from backend.app.models.comment import Comment
+from backend.app.database.database_service import AsyncDatabaseService
 import logging
+
+from backend.app.schemas.comment import CommentCreate
+
 
 logger = logging.getLogger(__name__)
 
-def add_comment(db: Session, task_id: int, user_id: int, content: str) -> Comment:
-    """Добавляет комментарий к задаче."""
-    db_service = DatabaseService(db)
-    comment_data = {
-        "task_id": task_id,
-        "comment": content,
-        "user_id": user_id
-    }
-    comment = db_service.create(Comment, comment_data)
+async def add_comment(db: AsyncSession, task_id: int, user_id: int, content: str) -> Comment:
+    db_service = AsyncDatabaseService(db)
+    
+    comment_data = CommentCreate(
+        user_id=user_id,
+        content=content,
+        task_id=task_id
+    ).model_dump()
+    
+    comment = await db_service.create(Comment, comment_data)
     return comment
 
-def get_comments_for_task(db: Session, task_id: int) -> List[Comment]:
+async def get_comments_for_task(db: AsyncSession, task_id: int) -> List[Comment]:
     """Получает список комментариев для задачи."""
-    db_service = DatabaseService(db)
-    return db.query(Comment).filter(Comment.task_id == task_id).order_by(Comment.created_at.desc()).all()
+    result = await db.execute(
+        select(Comment)
+        .where(Comment.task_id == task_id)
+        .order_by(Comment.created_at.desc())
+    )
+    comments = list(result.scalars().all())
+    return comments

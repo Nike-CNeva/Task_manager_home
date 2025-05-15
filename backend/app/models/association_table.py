@@ -9,13 +9,6 @@ user_workshop_association = Table(
     Column("workshop_id", Integer, ForeignKey("workshop.id"), primary_key=True)
 )
 
-comment_user_association = Table(
-    "comment_user_association",
-    Base.metadata,
-    Column("comment_id", Integer, ForeignKey("comment.id"), primary_key=True),
-    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True)
-)
-
 task_responsible_association = Table(
     "task_responsible_association",
     Base.metadata,

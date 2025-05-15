@@ -19,4 +19,4 @@ class User(Base):
     # Связь Many-to-Many с Task (Ответственные)
     tasks = relationship("Task", secondary=task_responsible_association, back_populates="responsible_users")
     workshops = relationship("Workshop", secondary=user_workshop_association, back_populates="users")
-    comments = relationship("Comment", secondary=comment_user_association, back_populates="users")
+    comments = relationship("Comment", back_populates="user")
