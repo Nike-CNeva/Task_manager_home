@@ -1,4 +1,4 @@
-from enum import Enum 
+from enum import Enum
 
 class ProductTypeEnum(str, Enum):
     PROFILE = "Профиля"
@@ -93,3 +93,13 @@ class StatusEnum(str, Enum):
     COMPLETED = "Выполнена"
     CANCELED = "Отменена"
     ON_HOLD = "На удержании"
+
+class FileType(str, Enum):
+    PHOTO = "photo"     
+    IMAGE = "image"      
+    PDF = "pdf"
+    NC = "nc"
+    EXCEL = "excel"
+    WORD = "word"
+    DXF = "dxf"
+    DWG = "dwg"
