@@ -75,11 +75,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
 # ================================
 # Хэширование и проверка пароля
 # ================================
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+async def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Проверяет соответствие хэшированного пароля введенному."""
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_password_hash(password: str) -> str:
+async def get_password_hash(password: str) -> str:
     """Хэширует пароль перед сохранением в БД."""
     return pwd_context.hash(password)
 

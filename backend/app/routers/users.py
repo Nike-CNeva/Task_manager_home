@@ -1,10 +1,10 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 from backend.app.core.dependencies import get_current_user, get_db
 from backend.app.models.enums import UserTypeEnum
-from backend.app.schemas.user import UserRead, UserSaveForm, UserWithWorkshops
+from backend.app.schemas.user import PasswordChangeRequest, UserRead, UserSaveForm, UserWithWorkshops
 from sqlalchemy.ext.asyncio import AsyncSession
 from middlewares.auth_middleware import get_password_hash, verify_password
 from backend.app.models.user import User
@@ -58,41 +58,41 @@ async def get_workshops(current_user: User = Depends(get_current_user)):
 @router.post("/admin/users/save")
 async def save_user(
     form_data: UserSaveForm,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     if current_user.user_type != UserTypeEnum.ADMIN:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
 
+    # Преобразуем имена цехов в Enum
     try:
         workshop_enums = [WorkshopEnum(workshop) for workshop in form_data.workshops]
     except ValueError:
         raise HTTPException(status_code=400, detail="Некорректные цеха")
 
-    workshop_objs = db.query(Workshop).filter(Workshop.name.in_([w.value for w in workshop_enums])).all()
+    # Получаем объекты цехов
+    stmt = select(Workshop).where(Workshop.name.in_([w.value for w in workshop_enums]))
+    result = await db.execute(stmt)
+    workshop_objs = result.scalars().all()
 
     if not workshop_objs:
         raise HTTPException(status_code=400, detail="Цеха не найдены")
 
     try:
-        if form_data.id:  # редактирование
-            user_service.update_user(
+        if form_data.id:
+            # Обновление пользователя
+            await user_service.update_user(
                 db=db,
                 form_data=form_data,
                 workshop_ids=[w.id for w in workshop_objs]
             )
             message = "Пользователь обновлён"
-        else:  # создание
-            user_service.create_user(
-                db,
-                {
-                    "name": form_data.name,
-                    "firstname": form_data.firstname,
-                    "username": form_data.username,
-                    "user_type": form_data.user_type,
-                    "password": form_data.password,
-                },
-                [w.id for w in workshop_objs]
+        else:
+            # Создание нового пользователя
+            await user_service.create_user(
+                db=db,
+                user_data=form_data,
+                workshop_ids=[w.id for w in workshop_objs]
             )
             message = "Пользователь создан"
 
@@ -101,17 +101,28 @@ async def save_user(
 
     return JSONResponse(content={"message": message, "redirect_url": "/admin/users"})
 
-
 @router.put("/admin/users/{user_id}/edit")
-def edit_user_form(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def edit_user_form(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     if current_user.user_type != UserTypeEnum.ADMIN:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
-    user_obj = db.query(User).filter(User.id == user_id).first()
-    if not user_obj:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
-    workshops = db.query(Workshop).all()
+    # Получаем пользователя
+    user_select = select(User).where(User.id == user_id)
+    result_user = await db.execute(user_select)
+    user_obj: User | None = result_user.scalar_one_or_none()
+    if not user_obj:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    # Получаем все цеха
+    result_workshops = await db.execute(select(Workshop))
+    workshops = result_workshops.scalars().all()
+
     roles = [role.value for role in UserTypeEnum]
+
     return JSONResponse(content={
         "roles": roles,
         "workshops": [w.name for w in workshops],
@@ -128,8 +139,9 @@ def edit_user_form(user_id: int, db: Session = Depends(get_db), current_user: Us
     })
 
 
+
 @router.get("/profile")
-def get_profile(current_user: User = Depends(get_current_user)):
+async def get_profile(current_user: User = Depends(get_current_user)):
     print(f"Текущий пользователь: {current_user}")
     return JSONResponse(content={
         "user_authenticated": True,
@@ -146,49 +158,73 @@ def get_profile(current_user: User = Depends(get_current_user)):
 
 
 @router.put("/profile")
-def edit_profile(
-    data: UserBase,
-    db: Session = Depends(get_db),
+async def edit_profile(
+    data: UserSaveForm,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Проверка email, если он передан и отличается
+    # Проверка email
     if data.email and data.email != current_user.email:
-        user_with_email = db.query(User).filter(User.email == data.email).first()
+        user_email_check = select(User).where(User.email == data.email)
+        result_email = await db.execute(user_email_check)
+        user_with_email: User | None = result_email.scalar_one_or_none()
         if user_with_email:
-            raise HTTPException(status_code=400, detail="Email уже используется другим пользователем")
+            raise HTTPException(
+                status_code=400,
+                detail="Email уже используется другим пользователем"
+            )
 
-    # Проверка username, если отличается
+    # Проверка username
     if data.username != current_user.username:
-        user_with_username = db.query(User).filter(User.username == data.username).first()
+        user_username_check = select(User).where(User.username == data.username)
+        result_username = await db.execute(user_username_check)
+        user_with_username: User | None = result_username.scalar_one_or_none()
         if user_with_username:
-            raise HTTPException(status_code=400, detail="Username уже используется другим пользователем")
+            raise HTTPException(
+                status_code=400,
+                detail="Username уже используется другим пользователем"
+            )
 
     # Обновляем поля
     current_user.name = data.name
-    current_user.firstname = data.firstname
+    current_user.firstname = str(data.firstname) if data.firstname else None # type: ignore
     current_user.username = data.username
-    current_user.email = data.email  # может быть None
-    current_user.telegram = data.telegram  # может быть None
+    current_user.email = str(data.email) if data.email else None # type: ignore
+    current_user.telegram = str(data.telegram) if data.telegram else None # type: ignore
+    
 
-    db.commit()
+    db.add(current_user)           # на всякий случай
+    await db.commit()              # обязательно await
+    await db.refresh(current_user)  # обновим объект после commit
 
     return JSONResponse(content={"message": "Профиль обновлён"})
 
 
 
+
 @router.put("/profile/password")
-def change_password(
+async def change_password(
     data: PasswordChangeRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if not verify_password(data.current_password, current_user.password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Текущий пароль введен неверно")
+    if not await verify_password(data.current_password, current_user.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Текущий пароль введен неверно"
+        )
     
     if data.new_password != data.confirm_password:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Новый пароль и его подтверждение не совпадают")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Новый пароль и его подтверждение не совпадают"
+        )
 
-    current_user.password = get_password_hash(data.new_password)
-    db.commit()
+    current_user.password = await get_password_hash(data.new_password)
+    db.add(current_user)  # добавляем в сессию, если не добавлен
+    await db.commit()     # await нужен — это AsyncSession
+    await db.refresh(current_user)
 
-    return JSONResponse(content={"message": "Пароль успешно обновлён", "redirect_url": "/profile"})
+    return JSONResponse(
+        content={"message": "Пароль успешно обновлён", "redirect_url": "/profile"}
+    )
