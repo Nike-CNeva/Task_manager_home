@@ -11,7 +11,7 @@ class Material(Base):
     type: Mapped[MaterialTypeEnum] = mapped_column(SQLEnum(MaterialTypeEnum), nullable=False)
     thickness: Mapped[MaterialThicknessEnum] = mapped_column(SQLEnum(MaterialThicknessEnum), nullable=False)
     color: Mapped[str] = mapped_column(String(50), nullable=True)
-    painting: Mapped[Boolean] = mapped_column(Boolean, default=False)
+    painting: Mapped[bool] = mapped_column(Boolean, default=False)
     tasks = relationship("Task", back_populates="material")
 
 # Additional Tables

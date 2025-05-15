@@ -2,7 +2,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
-from backend.app.core.dependencies import get_current_user, get_db
+from backend.app.core.dependencies import get_current_user
+from backend.app.database.database import get_db
 from backend.app.models.enums import UserTypeEnum
 from backend.app.schemas.user import PasswordChangeRequest, UserRead, UserSaveForm, UserWithWorkshops
 from sqlalchemy.ext.asyncio import AsyncSession

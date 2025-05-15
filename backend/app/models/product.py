@@ -50,7 +50,7 @@ class ExtensionBracket(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
     width: Mapped[int] = mapped_column(nullable=False)
     length: Mapped[str] = mapped_column(nullable=False)
-    heel: Mapped[Boolean] = mapped_column(nullable=False, default=False)
+    heel: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     product = relationship("Product", back_populates="extension_bracket")
 
 # Cassette Table
@@ -70,5 +70,5 @@ class LinearPanel(Base):
     field: Mapped[int] = mapped_column(nullable=False)
     rust: Mapped[int] = mapped_column(nullable=False)
     length: Mapped[int] = mapped_column(nullable=False)
-    butt_end: Mapped[Boolean] = mapped_column(nullable=False, default=False)
+    butt_end: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     product = relationship("Product", back_populates="linear_panel")

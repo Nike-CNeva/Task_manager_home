@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: Path = Path("uploads")  # Директория для загрузки файлов
 
     # Настройки базы данных
-    DATABASE_URL: str = "postgresql://postgres:Nike5427720@localhost/task_manager"  # URL для подключения к базе данных
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:Nike5427720@localhost/task_manager"  # URL для подключения к базе данных
     SECRET_KEY: str = "my_super_secret_key"  # Секретный ключ для JWT
     ALGORITHM: str = "HS256"  # Алгоритм для JWT
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # Время жизни токена доступа в минутах
