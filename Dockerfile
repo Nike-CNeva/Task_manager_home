@@ -14,7 +14,7 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Копируем код
-COPY backend /app/backend
+COPY backend/ /app/backend
 COPY --from=frontend /app/frontend/dist /app/backend/static
 
 # Указываем рабочую директорию и команду запуска
