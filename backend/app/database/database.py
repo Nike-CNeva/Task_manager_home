@@ -20,6 +20,7 @@ engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=True)
 # ---------------------------
 # Здесь используем AsyncSession для работы с асинхронной сессией
 AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
     class_=AsyncSession,  # Указываем, что сессии должны быть асинхронными
     expire_on_commit=False
 )
