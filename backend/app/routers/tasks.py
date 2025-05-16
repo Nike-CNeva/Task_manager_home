@@ -11,7 +11,7 @@ from backend.app.schemas.bid import BidCreateResponse
 from backend.app.schemas.customer import CustomerCreateRequest, CustomerRead
 from backend.app.schemas.product import ProductResponse
 from backend.app.schemas.task import TaskRead
-from services import task_service, product_service, material_service
+from backend.app.services import task_service, product_service, material_service
 import json
 import logging
 

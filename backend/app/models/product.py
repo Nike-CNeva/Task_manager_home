@@ -1,6 +1,6 @@
 from sqlalchemy import Boolean, Enum as SQLEnum, ForeignKey, String
 from backend.app.database.database import Base
-from .enums import ProductTypeEnum, ProfileTypeEnum, KlamerTypeEnum, CassetteTypeEnum
+from backend.app.models.enums import ProductTypeEnum, ProfileTypeEnum, KlamerTypeEnum, CassetteTypeEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Product Table

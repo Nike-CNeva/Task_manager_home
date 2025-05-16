@@ -16,7 +16,7 @@ from backend.app.services.user_service import get_user_workshop
 from backend.app.database.database_service import AsyncDatabaseService
 from backend.app.core.settings import settings
 import logging
-from services import file_service
+from backend.app.services import file_service
 
 logger = logging.getLogger(__name__)
 

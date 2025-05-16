@@ -1,9 +1,9 @@
 from sqlalchemy import ForeignKey, DateTime, Enum as SQLEnum, String
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from backend.app.database.database import Base
-from .enums import UrgencyEnum, StatusEnum
+from backend.app.models.enums import UrgencyEnum, StatusEnum
 from sqlalchemy.sql import func
-from .association_table import *
+from backend.app.models.association_table import *
 
 # Task Table
 class Task(Base):

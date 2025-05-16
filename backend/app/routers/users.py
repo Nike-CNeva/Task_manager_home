@@ -7,10 +7,10 @@ from backend.app.database.database import get_db
 from backend.app.models.enums import UserTypeEnum
 from backend.app.schemas.user import PasswordChangeRequest, UserRead, UserSaveForm, UserWithWorkshops
 from sqlalchemy.ext.asyncio import AsyncSession
-from middlewares.auth_middleware import get_password_hash, verify_password
+from backend.app.middlewares.auth_middleware import get_password_hash, verify_password
 from backend.app.models.user import User
 from backend.app.models.workshop import Workshop, WorkshopEnum
-from services import user_service
+from backend.app.services import user_service
 
 
 

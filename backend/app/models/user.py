@@ -1,8 +1,8 @@
 from sqlalchemy import Enum as SQLEnum, String, Boolean
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from backend.app.database.database import Base
-from .enums import UserTypeEnum
-from .association_table import *
+from backend.app.models.enums import UserTypeEnum
+from backend.app.models.association_table import *
 
 
 class User(Base):

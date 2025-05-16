@@ -2,7 +2,7 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from backend.app.models.enums import UserTypeEnum, WorkshopEnum
-from backend.app.schemas.task import TaskRead
+
 
 
 class UserBase(BaseModel):
@@ -32,8 +32,6 @@ class PasswordChangeRequest(BaseModel):
     new_password: str
     confirm_password: str
     
-class UserWithTasks(UserRead):
-    tasks: List[TaskRead] = Field(default_factory=list, description="Список задач пользователя")
 
 class UserWithWorkshops(BaseModel):
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)

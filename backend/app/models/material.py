@@ -2,7 +2,7 @@
 from sqlalchemy import Boolean, Enum as SQLEnum, ForeignKey, String
 from backend.app.database.database import Base
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from .enums import MaterialFormEnum, MaterialTypeEnum, MaterialThicknessEnum
+from backend.app.models.enums import MaterialFormEnum, MaterialTypeEnum, MaterialThicknessEnum
 
 class Material(Base):
     __tablename__ = "material"

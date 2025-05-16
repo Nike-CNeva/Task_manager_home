@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.dependencies import get_db
 from backend.app.models.files import Files
 from backend.app.schemas.file import UploadedFileResponse
-from services import file_service
+from backend.app.services import file_service
 
 router = APIRouter()
 

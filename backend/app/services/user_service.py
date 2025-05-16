@@ -1,11 +1,12 @@
 from typing import Any, Dict, List, Optional, Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
+from backend.app.middlewares.auth_middleware import get_password_hash
 from backend.app.models.enums import UserTypeEnum
 from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
 from backend.app.schemas.user import UserSaveForm
-from middlewares.auth_middleware import get_password_hash
+
 from backend.app.database.database_service import AsyncDatabaseService
 import logging
 

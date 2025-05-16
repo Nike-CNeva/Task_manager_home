@@ -2,7 +2,7 @@ from sqlalchemy import Enum as SQLEnum
 from backend.app.database.database import Base
 from backend.app.models.enums import WorkshopEnum
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from .association_table import *
+from backend.app.models.association_table import *
 
 class Workshop(Base):
     __tablename__ = "workshop"

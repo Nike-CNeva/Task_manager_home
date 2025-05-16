@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.models.enums import StatusEnum
-from backend.app.schemas.user import UserRead
+
 
 
 class TaskBase(BaseModel):
@@ -22,8 +22,6 @@ class TaskRead(TaskBase):
     id: int = Field(..., description="ID задачи")
 
 
-class TaskWithUsers(TaskRead):
-    responsible_users: List[UserRead] = Field(default_factory=list, description="Список ответственных пользователей")
 
 class TaskCreateResponse(BaseModel):
     """

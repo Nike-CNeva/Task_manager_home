@@ -2,8 +2,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from backend.app.core.dependencies import get_db
 from backend.app.schemas.user import UserBase
-from middlewares.auth_middleware import create_access_token, verify_password
-from services import user_service
+from backend.app.middlewares.auth_middleware import create_access_token, verify_password
+from backend.app.services import user_service
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()

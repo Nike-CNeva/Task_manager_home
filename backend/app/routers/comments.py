@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.dependencies import get_db
 from backend.app.schemas.comment import CommentCreate, CommentResponse
-from services import comment_service
+from backend.app.services import comment_service
 from datetime import datetime
 
 router = APIRouter()

@@ -1,8 +1,10 @@
 from fastapi import Depends, Request, HTTPException
 from backend.app.database.database import get_db
 from backend.app.schemas.user import UserRead
-from services.user_service import get_user_by_id
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.services.user_service import get_user_by_id
 
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> UserRead:

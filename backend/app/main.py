@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from backend.app.routers import users, tasks, files, comments, auth, home
 from backend.app.core.settings import settings
-from middlewares.auth_middleware import AuthMiddleware
+from backend.app.middlewares.auth_middleware import AuthMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
