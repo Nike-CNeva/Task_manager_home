@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+#from fastapi.staticfiles import StaticFiles
 from backend.app.routers import users, tasks, files, comments, auth, home
 from backend.app.core.settings import settings
 from backend.app.middlewares.auth_middleware import AuthMiddleware
