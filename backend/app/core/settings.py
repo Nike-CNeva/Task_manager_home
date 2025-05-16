@@ -15,6 +15,6 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"  # Алгоритм для JWT
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # Время жизни токена доступа в минутах
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", env_file_encoding="utf-8")
 # Создаем объект настроек
 settings = Settings()
