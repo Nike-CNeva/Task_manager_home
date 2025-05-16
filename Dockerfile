@@ -19,4 +19,4 @@ COPY --from=frontend /app/frontend/dist /app/backend/static
 
 # Указываем рабочую директорию и команду запуска
 WORKDIR /app/backend
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
