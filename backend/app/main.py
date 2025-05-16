@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from backend.app.routers import users, tasks, files, comments, auth, home
 from backend.app.core.settings import settings
-#from backend.app.middlewares.auth_middleware import AuthMiddleware, get_password_hash
+from backend.app.middlewares.auth_middleware import AuthMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
@@ -21,8 +21,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # Подключаем Middleware
-#app.add_middleware(AuthMiddleware)
-#app.mount("/static", StaticFiles(directory="static", html=True), name="static")
+app.add_middleware(AuthMiddleware)
+
 
 # Подключение роутеров
 app.include_router(home.router, tags=["Главная"])
