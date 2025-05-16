@@ -1,14 +1,22 @@
-FROM python:3.11-slim
+# --- Сборка фронтенда ---
+FROM node:18 AS frontend
 
-WORKDIR /app/backend
+WORKDIR /app/frontend
+COPY frontend/ /app/frontend/
+RUN npm install && npm run build
 
-COPY requirements.txt .
+# --- Сборка Python-бэкенда ---
+FROM python:3.11 AS backend
 
+# Устанавливаем зависимости
+WORKDIR /app
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Копируем код
+COPY backend /app/backend
+COPY --from=frontend /app/frontend/dist /app/backend/static
 
-ENV PYTHONPATH=/app/backend
-
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "/app"]
-
+# Указываем рабочую директорию и команду запуска
+WORKDIR /app/backend
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
