@@ -9,8 +9,8 @@ RUN npm install && npm run build
 FROM python:3.11 AS backend
 
 # Устанавливаем зависимости
-WORKDIR /app
-COPY backend/requirements.txt .
+WORKDIR /app/backend
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Копируем код
