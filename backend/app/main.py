@@ -20,7 +20,7 @@ app.add_middleware(
 )
 # Подключаем Middleware
 app.add_middleware(AuthMiddleware)
-app.mount("/static", StaticFiles(directory="static", html=True), name="static")
+#app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
 # Подключение роутеров
 app.include_router(home.router, tags=["Главная"])
