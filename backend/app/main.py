@@ -4,7 +4,8 @@ from backend.app.routers import users, tasks, files, comments, auth, home
 from backend.app.core.settings import settings
 from backend.app.middlewares.auth_middleware import AuthMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-
+import os
+print("CWD:", os.getcwd())
 app = FastAPI(
     title="Система управления задачами для производства",
     description="API для управления задачами, пользователями, файлами и комментариями в производственной системе.",
