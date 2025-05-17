@@ -77,15 +77,15 @@
   
   onMounted(async () => {
   // Загружаем данные с API
-  const customersResponse = await fetch('/api/customers/');
+  const customersResponse = await fetch('/customers/');
   customers.value = await customersResponse.json();
   console.log("Customers:", customers.value); // Выводим данные клиентов в консоль
   
-  const managersResponse = await fetch('/api/managers/');
+  const managersResponse = await fetch('/managers/');
   managers.value = await managersResponse.json();
   console.log("Managers:", managers.value); // Выводим данные менеджеров в консоль
 
-  const statusesResponse = await fetch('/api/statuses/');
+  const statusesResponse = await fetch('/statuses/');
   statuses.value = await statusesResponse.json();
   console.log("Statuses:", statuses.value); // Выводим данные статусов в консоль
 });
@@ -126,7 +126,7 @@
     formData.append('bid_data', JSON.stringify(payload));
     files.value.forEach(file => formData.append('files', file));
   
-    const response = await fetch('/api/bids/create/', {
+    const response = await fetch('/bids/create/', {
       method: 'POST',
       body: formData,
     });

@@ -69,7 +69,7 @@ onMounted(async () => {
       throw new Error('Токен не найден! Пожалуйста, войдите в систему.')
     }
 
-    const response = await fetch('/api/profile', {
+    const response = await fetch('/profile', {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -125,7 +125,7 @@ const handleSubmit = async () => {
     if (!token) {
       throw new Error('Токен не найден! Пожалуйста, войдите в систему.')
     }
-    const response = await fetch('/api/profile', {
+    const response = await fetch('/profile', {
       method: 'POST',
       headers: {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(form),

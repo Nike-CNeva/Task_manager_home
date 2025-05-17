@@ -75,8 +75,8 @@
       
       try {
         const metaRes = await fetchWithToken(this.editMode 
-          ? `/api/admin/users/${id}/edit` 
-          : `/api/admin/users/create`); // Используем fetchWithToken
+          ? `/admin/users/${id}/edit` 
+          : `/admin/users/create`); // Используем fetchWithToken
         const metaData = metaRes;
 
         this.roles = metaData.roles;
@@ -106,7 +106,7 @@
         }
 
         try {
-          const response = await fetchWithToken('/api/admin/users/save', {
+          const response = await fetchWithToken('/admin/users/save', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

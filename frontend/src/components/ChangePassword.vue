@@ -73,7 +73,7 @@
           if (!token) {
             throw new Error('Токен не найден! Пожалуйста, войдите в систему.')
           }
-          const response = await fetch("/api/profile/password", {
+          const response = await fetch("/profile/password", {
             method: "POST",
             headers: {
               'Authorization': `Bearer ${token}`,

@@ -61,7 +61,7 @@
     methods: {
       async fetchUsers() {
         try {
-          const data = await fetchWithToken("/api/admin/users");  // Используем fetchWithToken
+          const data = await fetchWithToken("/admin/users");  // Используем fetchWithToken
           this.users = data.users || [];  // Присваиваем пустой массив, если нет данных
         } catch (error) {
           console.error("Ошибка загрузки пользователей:", error);
@@ -71,7 +71,7 @@
       async confirmDelete(user) {
         if (confirm(`Удалить пользователя ${user.name}?`)) {
           try {
-            const response = await fetchWithToken(`/api/admin/users/${user.id}/delete`, {
+            const response = await fetchWithToken(`/admin/users/${user.id}/delete`, {
               method: "GET",  // Можно заменить на DELETE, если на бэке реализовано
             });
 

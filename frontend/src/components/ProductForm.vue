@@ -127,7 +127,7 @@
   const allEmployees = ref([]);
   
   onMounted(async () => {
-    productOptions.value = await (await fetch('/api/products/')).json();
+    productOptions.value = await (await fetch('/products/')).json();
     urgencies.value = await (await fetch('/urgency/')).json();
     allWorkshops.value = await (await fetch('/workshops/')).json();
     allEmployees.value = await (await fetch('/employee/')).json();
@@ -146,8 +146,8 @@
   
   async function handleProductChange() {
     const pid = productData.product_id;
-    productFields.value = await (await fetch(`/api/products/${pid}/fields`)).json();
-    materialForms.value = await (await fetch(`/api/material/forms/${pid}`)).json();
+    productFields.value = await (await fetch(`/products/${pid}/fields`)).json();
+    materialForms.value = await (await fetch(`/material/forms/${pid}`)).json();
     if (['CASSETTE', 'SHEET'].includes(pid)) {
       showSheets.value = true;
     } else {
@@ -165,7 +165,7 @@
   async function loadMaterialTypes() {
     const pid = productData.product_id;
     const form = productData.material;
-    materialTypes.value = await (await fetch(`/api/material/types/${pid}/${form}`)).json();
+    materialTypes.value = await (await fetch(`/material/types/${pid}/${form}`)).json();
     if (materialTypes.value.length) {
       productData.material_type = materialTypes.value[0].name;
       await loadThickness();
@@ -173,7 +173,7 @@
   }
   
   async function loadThickness() {
-    thicknesses.value = await (await fetch(`/api/material/thickness/${productData.material_type}`)).json();
+    thicknesses.value = await (await fetch(`/material/thickness/${productData.material_type}`)).json();
   }
   
   function addSheet() {

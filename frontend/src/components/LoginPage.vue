@@ -59,7 +59,7 @@ export default {
       this.isLoading = true;  // Запуск процесса загрузки
       try {
         // Отправляем запрос на сервер для аутентификации
-        const response = await axios.post('/api/login', {
+        const response = await axios.post('/login', {
           username: this.username,
           password: this.password
         });
