@@ -2,26 +2,26 @@
   <div class="container mt-4">
     <h3>Ваши данные:</h3>
 
-    <form @submit.prevent="handleSubmit">
+    <form @submit.prevent="handleSubmit" novalidate>
       <ul class="list-group mb-4">
         <li class="list-group-item">
-          <strong>Имя:</strong>
+          <label><strong>Имя:</strong></label>
           <input v-model="form.name" type="text" class="form-control" required />
         </li>
         <li class="list-group-item">
-          <strong>Фамилия:</strong>
+          <label><strong>Фамилия:</strong></label>
           <input v-model="form.firstname" type="text" class="form-control" />
         </li>
         <li class="list-group-item">
-          <strong>Почта:</strong>
+          <label><strong>Почта:</strong></label>
           <input v-model="form.email" type="email" class="form-control" />
         </li>
         <li class="list-group-item">
-          <strong>Телеграм:</strong>
-          <input v-model="form.telegram" type="text" class="form-control" />
+          <label><strong>Телеграм:</strong></label>
+          <input v-model="form.telegram" type="text" class="form-control" placeholder="@username" />
         </li>
         <li class="list-group-item">
-          <strong>Login:</strong>
+          <label><strong>Login:</strong></label>
           <input v-model="form.username" type="text" class="form-control" required />
         </li>
         <li class="list-group-item">
@@ -34,10 +34,10 @@
         </li>
       </ul>
 
-      <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+      <button type="submit" class="btn btn-primary w-100">Сохранить изменения</button>
     </form>
 
-    <router-link to="/profile/password" class="btn btn-warning mt-3">Изменить пароль</router-link>
+    <router-link to="/profile/password" class="btn btn-warning mt-3 w-100">Изменить пароль</router-link>
   </div>
 </template>
 
@@ -54,14 +54,13 @@ const form = reactive({
   telegram: '',
   username: '',
   user_type: '',
-  workshops: [], // список цехов
+  workshops: [],
 })
 
-const isEmptyOrDefault = (value) => !value.trim() || value.trim().toLowerCase() === 'не указано'
+const isEmptyOrDefault = (value) => !value || !value.trim() || value.trim().toLowerCase() === 'не указано'
 
-const isCyrillic = (text) => /^[А-ЯЁ][а-яё]+$/.test(text)
+const isCyrillic = (text) => /^[А-ЯЁ][а-яё]+$/.test(text.trim())
 
-// Загружаем данные с сервера
 onMounted(async () => {
   try {
     const token = localStorage.getItem('auth_token')
@@ -78,21 +77,21 @@ onMounted(async () => {
 
     const data = await response.json()
 
-    // Заполняем форму данными с сервера
-    form.name = data.name || form.name
-    form.firstname = data.firstname || form.firstname
-    form.email = data.email || form.email
-    form.telegram = data.telegram || form.telegram
-    form.username = data.username || form.username
-    form.user_type = data.user_type || form.user_type
-    form.workshops = data.workshops || form.workshops
+    // Заполняем форму, если данные есть
+    form.name = data.name || ''
+    form.firstname = data.firstname || ''
+    form.email = data.email || ''
+    form.telegram = data.telegram || ''
+    form.username = data.username || ''
+    form.user_type = data.user_type || ''
+    form.workshops = Array.isArray(data.workshops) ? data.workshops : []
   } catch (e) {
     alert(`Ошибка: ${e.message}`)
   }
 })
 
 const handleSubmit = async () => {
-  let errors = []
+  const errors = []
 
   if (isEmptyOrDefault(form.name) || !isCyrillic(form.name)) {
     errors.push('Имя должно содержать только кириллицу, первая буква заглавная.')
@@ -119,7 +118,6 @@ const handleSubmit = async () => {
     return
   }
 
-  // Отправка данных на сервер
   try {
     const token = localStorage.getItem('auth_token')
     if (!token) {
@@ -127,11 +125,15 @@ const handleSubmit = async () => {
     }
     const response = await fetch('/profile', {
       method: 'POST',
-      headers: {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(form),
     })
 
     if (!response.ok) throw new Error('Ошибка при сохранении данных. Пожалуйста, попробуйте позже.')
+
     alert('Данные успешно сохранены!')
     router.push('/home')
   } catch (e) {
@@ -139,7 +141,6 @@ const handleSubmit = async () => {
   }
 }
 </script>
-
 
 <style scoped>
 .container {

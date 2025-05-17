@@ -1,37 +1,48 @@
 <template>
   <div class="row justify-content-center mt-5">
     <div class="col-md-6">
-      <div class="card">
+      <div class="card shadow-sm">
         <div class="card-header">
           <h3 class="text-center">Вход в систему</h3>
         </div>
         <div class="card-body">
           <!-- Ошибка -->
-          <div v-if="error" class="alert alert-danger">{{ error }}</div>
+          <div v-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
           
           <!-- Форма входа -->
-          <form @submit.prevent="submitForm">
+          <form @submit.prevent="submitForm" novalidate>
             <div class="mb-3">
               <label for="username" class="form-label">Логин</label>
-              <input 
-                type="text" 
-                class="form-control" 
-                id="username" 
-                v-model="username" 
+              <input
+                type="text"
+                class="form-control"
+                id="username"
+                v-model.trim="username"
                 required
+                autocomplete="username"
+                :disabled="isLoading"
               />
             </div>
             <div class="mb-3">
               <label for="password" class="form-label">Пароль</label>
-              <input 
-                type="password" 
-                class="form-control" 
-                id="password" 
-                v-model="password" 
+              <input
+                type="password"
+                class="form-control"
+                id="password"
+                v-model="password"
                 required
+                autocomplete="current-password"
+                :disabled="isLoading"
               />
             </div>
-            <button type="submit" class="btn btn-primary w-100">Войти</button>
+            <button
+              type="submit"
+              class="btn btn-primary w-100"
+              :disabled="isLoading"
+            >
+              <span v-if="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Войти
+            </button>
           </form>
         </div>
       </div>
@@ -54,41 +65,39 @@ export default {
   },
   methods: {
     ...mapActions(['login']),
-    
     async submitForm() {
-      this.isLoading = true;  // Запуск процесса загрузки
+      this.error = '';
+      if (!this.username || !this.password) {
+        this.error = 'Пожалуйста, заполните все поля.';
+        return;
+      }
+
+      this.isLoading = true;
+
       try {
-        // Отправляем запрос на сервер для аутентификации
         const response = await axios.post('/login', {
           username: this.username,
           password: this.password
         });
 
-        // Если авторизация успешна, сохраняем токен в Vuex
         if (response.data.access_token) {
-          this.login({
-            token: response.data.access_token,
-          });
+          this.login({ token: response.data.access_token });
 
-          // Локальное сохранение токена для последующего использования
           localStorage.setItem('auth_token', response.data.access_token);
           localStorage.setItem('user', JSON.stringify(response.data.user));
-          
+
           this.$router.push('/home');
         } else {
           this.error = 'Ошибка авторизации: отсутствуют данные пользователя.';
         }
       } catch (error) {
-        // Обрабатываем ошибку
         if (error.response) {
-          // Если есть ответ от сервера
-          this.error = `Ошибка: ${error.response.data.detail || 'Произошла ошибка при попытке войти в систему.'}`;
+          this.error = `Ошибка: ${error.response.data.detail || 'Не удалось войти в систему.'}`;
         } else {
-          // Если ошибка не связана с сервером
-          this.error = 'Произошла ошибка при попытке войти в систему.';
+          this.error = 'Сетевая ошибка. Проверьте подключение и попробуйте снова.';
         }
       } finally {
-        this.isLoading = false;  // Завершаем процесс загрузки
+        this.isLoading = false;
       }
     }
   }
@@ -96,5 +105,7 @@ export default {
 </script>
 
 <style scoped>
-/* Стили для компонента */
+.card {
+  border-radius: 0.5rem;
+}
 </style>

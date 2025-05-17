@@ -5,16 +5,16 @@
         <div class="card-body">
           <p>Текущая дата и время: <span>{{ currentTime }}</span></p>
 
-          <div v-if="userAuthenticated" id="auth-content">
+          <div v-if="userAuthenticated" class="auth-content">
             <h2>Добро пожаловать, {{ userName }}!</h2>
-            <a href="/tasks" class="btn btn-success">Перейти к задачам</a>
+            <router-link to="/tasks" class="btn btn-success">Перейти к задачам</router-link>
           </div>
 
-          <div v-else id="auth-content">
+          <div v-else class="auth-content">
             <div class="alert alert-warning mt-4">
               <h4 class="alert-heading">Добро пожаловать на главную страницу!</h4>
               <p>Пожалуйста, авторизуйтесь, чтобы начать работать.</p>
-              <a href="/login" class="btn btn-primary">Войти</a>
+              <router-link to="/login" class="btn btn-primary">Войти</router-link>
             </div>
           </div>
         </div>
@@ -25,7 +25,6 @@
 
 <script>
 import { mapState } from 'vuex';
-import { fetchWithToken } from '@/utils/api';
 
 export default {
   data() {
@@ -44,33 +43,44 @@ export default {
     }
   },
   mounted() {
-    this.getData();
+    if (this.userAuthenticated) {
+      this.getData();
+    }
+    this.updateTime();
     setInterval(this.updateTime, 1000);
   },
   methods: {
+    async fetchWithToken(url, options = {}) {
+      // Пример функции fetch с токеном и обработкой ошибок
+      const baseUrl = ''; // если нужно, добавь базовый URL API
+      const response = await fetch(baseUrl + url, options);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    },
+
     async getData() {
       try {
-        const response = await fetchWithToken('/home', {
+        const data = await this.fetchWithToken('/home', {
           headers: {
             Authorization: `Bearer ${this.token}`,
           }
         });
-        console.log(response);
-        this.currentTime = new Date(response.current_datetime).toLocaleString();
-        this.user = response.user;
-
+        this.currentTime = new Date(data.current_datetime).toLocaleString();
+        this.user = data.user;
       } catch (error) {
         console.error("Ошибка при получении данных:", error);
       }
     },
+
     updateTime() {
-      const currentTime = new Date();
-      this.currentTime = currentTime.toLocaleString();
+      this.currentTime = new Date().toLocaleString();
     }
   }
 };
 </script>
 
 <style scoped>
-/* Добавьте стили для компонента, если необходимо */
+
 </style>
