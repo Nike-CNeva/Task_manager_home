@@ -133,7 +133,7 @@ const handleSubmit = async () => {
 
     if (!response.ok) throw new Error('Ошибка при сохранении данных. Пожалуйста, попробуйте позже.')
     alert('Данные успешно сохранены!')
-    router.push('/')
+    router.push('/home')
   } catch (e) {
     alert(`Ошибка: ${e.message}`)
   }
