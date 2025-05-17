@@ -48,7 +48,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 const form = reactive({
-  name: 'Не указано',
+  name: '',
   firstname: '',
   email: '',
   telegram: '',

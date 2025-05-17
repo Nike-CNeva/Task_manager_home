@@ -9,7 +9,7 @@ from backend.app.schemas.user import UserRead
 
 router = APIRouter()
 
-@router.get("/home", response_class=JSONResponse)
+@router.get("/", response_class=JSONResponse)
 def home(user: UserRead = Depends(get_current_user)):
     """
     Главная страница.

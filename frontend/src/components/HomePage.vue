@@ -50,7 +50,7 @@ export default {
   methods: {
     async getData() {
       try {
-        const response = await fetchWithToken('/home', {
+        const response = await fetchWithToken('/', {
           headers: {
             Authorization: `Bearer ${this.token}`,
           }
