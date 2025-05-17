@@ -21,7 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # Подключаем Middleware
-app.add_middleware(AuthMiddleware)
+#app.add_middleware(AuthMiddleware)
 
 
 # Подключение роутеров
