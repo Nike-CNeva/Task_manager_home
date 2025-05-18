@@ -63,7 +63,7 @@ const isCyrillic = (text) => /^[А-ЯЁ][а-яё]+$/.test(text.trim())
 
 onMounted(async () => {
   try {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('auth_token')
     if (!token) {
       throw new Error('Токен не найден! Пожалуйста, войдите в систему.')
     }
@@ -111,7 +111,7 @@ const handleSubmit = async () => {
   }
 
   try {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('auth_token')
     if (!token) {
       throw new Error('Токен не найден! Пожалуйста, войдите в систему.')
     }

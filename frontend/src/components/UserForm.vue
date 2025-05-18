@@ -74,7 +74,7 @@ import api from '@/utils/axios';
       this.userId = id;
   
       try {
-        const token = localStorage.getItem('access_token');
+        const token = localStorage.getItem('auth_token');
         if (!token) throw new Error('Токен не найден, пожалуйста, войдите в систему.');
   
         const url = this.editMode
@@ -110,7 +110,7 @@ import api from '@/utils/axios';
         }
   
         try {
-          const token = localStorage.getItem('access_token');
+          const token = localStorage.getItem('auth_token');
           if (!token) throw new Error('Токен не найден, пожалуйста, войдите в систему.');
   
           const { data, status } = await api.post('/admin/users/save', payload);

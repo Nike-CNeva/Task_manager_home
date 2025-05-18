@@ -9,19 +9,7 @@ import UserForm from './components/UserForm.vue';
 import ChangePassword from './components/ChangePassword.vue';
 import CreateBid from './components/CreateBid.vue';
 import store from './store'; // Vuex
-import api from './utils/axios';
 
-// Добавляем интерцептор для токена
-api.interceptors.request.use(
-  (config) => {
-    const token = store.getters.getToken;
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 // Маршруты
 const routes = [
@@ -42,19 +30,37 @@ const router = createRouter({
 });
 // Простой guard авторизации
 router.beforeEach((to, from, next) => {
-  const publicPages = ['/', '/login'];
-  const authRequired = !publicPages.includes(to.path);
-  const loggedIn = store.getters.isAuthenticated;
-
-  if (authRequired && !loggedIn) {
-    return next('/login');
+  if (!store.getters.isAuthChecked) {
+    const unwatch = store.watch(
+      (state, getters) => getters.isAuthChecked,
+      (authChecked) => {
+        if (authChecked) {
+          unwatch();
+          proceed();
+        }
+      }
+    );
+  } else {
+    proceed();
   }
-  next();
+
+  function proceed() {
+    const publicPages = ['/', '/login'];
+    const authRequired = !publicPages.includes(to.path);
+    const loggedIn = store.getters.isAuthenticated;
+
+    if (authRequired && !loggedIn) {
+      return next('/login');
+    }
+    next();
+  }
 });
-// ⚠️ ВАЖНО: Ждём загрузки пользователя перед монтированием
+// Асинхронный старт приложения
 store.dispatch('checkToken').finally(() => {
   const app = createApp(App);
   app.use(store);
   app.use(router);
+
+  // Монтируем только после верификации токена
   app.mount('#app');
 });

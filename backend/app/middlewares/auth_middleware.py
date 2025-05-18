@@ -48,11 +48,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         token_part = auth_header[len("Bearer "):]
-        logger.debug(f"🔐 Получен access_token: {auth_header}")
+        logger.debug(f"🔐 Получен auth_token: {auth_header}")
         logger.debug(f"🧩 Token part: {token_part}")
 
         try:
-            payload = decode_access_token(token_part)
+            payload = decode_auth_token(token_part)
             logger.debug(f"📦 Распакованный payload: {payload}")
             if payload:
                 request.state.user_id = payload.get("user_id")
@@ -104,7 +104,7 @@ async def get_password_hash(password: str) -> str:
 # ================================
 # Генерация и проверка JWT токенов
 # ================================
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_auth_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """
     Создает JWT-токен с заданным сроком действия.
     :param data: Данные для кодирования в токен
@@ -122,7 +122,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     return token
 
 
-def decode_access_token(token: str):
+def decode_auth_token(token: str):
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
@@ -135,27 +135,27 @@ def decode_access_token(token: str):
 
 # Функция для извлечения токена из cookies
 async def get_token_from_cookie(request: Request) -> str:
-    token = request.cookies.get("access_token")  # Получаем токен из куки
+    token = request.cookies.get("auth_token")  # Получаем токен из куки
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return token
 
 @router.post("/token")
-async def login_for_access_token(response: Response, username: str = Form(...), password: str = Form(...), db: AsyncSession = Depends(get_db)):
+async def login_for_auth_token(response: Response, username: str = Form(...), password: str = Form(...), db: AsyncSession = Depends(get_db)):
     from services.user_service import get_user_by_username
     user = await get_user_by_username(db, username)
     if not user or not await verify_password(password, user.password):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
-    # Генерация токена с помощью create_access_token
+    # Генерация токена с помощью create_auth_token
     payload = {"user_id": user.id}
-    token = create_access_token(payload, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    token = create_auth_token(payload, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
 
-    return {"access_token": token, "token_type": "bearer"}
+    return {"auth_token": token, "token_type": "bearer"}
 
 @router.get("/validate_token")
 async def validate_token(token: str = Depends(oauth2_scheme)) -> Dict[str, Optional[Union[str, int, bool]]]:
     try:
-        payload = decode_access_token(token)  # если decode_access_token не async, await не нужен
+        payload = decode_auth_token(token)  # если decode_auth_token не async, await не нужен
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

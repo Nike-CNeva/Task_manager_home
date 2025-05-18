@@ -2,7 +2,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from backend.app.core.dependencies import get_db
 from backend.app.schemas.user import UserBase
-from backend.app.middlewares.auth_middleware import create_access_token, verify_password
+from backend.app.middlewares.auth_middleware import create_auth_token, verify_password
 from backend.app.services import user_service
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,9 +29,9 @@ async def login_api(
             detail="Неверный логин или пароль"
         )
 
-    access_token = create_access_token({"sub": user.username, "user_id": user.id})
+    auth_token = create_auth_token({"sub": user.username, "user_id": user.id})
     return JSONResponse(content={
-        "access_token": access_token,
+        "auth_token": auth_token,
         "token_type": "bearer",
         "user": UserBase.model_validate(user).model_dump()
     })
@@ -44,5 +44,5 @@ async def logout_api():
         status_code=status.HTTP_200_OK
     )
     # Удаляем куку с токеном — max_age=0 или expires на прошедшую дату
-    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="auth_token")
     return response

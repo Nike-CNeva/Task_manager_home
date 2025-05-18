@@ -80,9 +80,9 @@ export default {
         password: this.password
       });
 
-      if (response.data.access_token && response.data.user) {
+      if (response.data.auth_token && response.data.user) {
         // Передаем токен и пользователя сразу в Vuex action
-        await this.login({ token: response.data.access_token, user: response.data.user });
+        await this.login({ token: response.data.auth_token, user: response.data.user });
 
         this.$router.push('/');
       } else {

@@ -28,5 +28,28 @@ const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes,
 });
+router.beforeEach((to, from, next) => {
+  if (!store.getters.isAuthChecked) {
+    // Ждём, пока store не проверит токен
+    const unwatch = store.watch(
+      (state) => state.authChecked,
+      (val) => {
+        if (val) {
+          unwatch();
+          proceed();
+        }
+      }
+    );
+  } else {
+    proceed();
+  }
 
+  function proceed() {
+    if (to.meta.requiresAuth && !store.getters.isAuthenticated) {
+      next({ name: 'Login' });
+    } else {
+      next();
+    }
+  }
+});
 export default router;

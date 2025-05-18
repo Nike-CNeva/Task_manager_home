@@ -4,7 +4,7 @@ import { encrypt, decrypt, encryptToken, decryptToken } from '@/utils/crypto';
 
 function getDecryptedToken() {
   try {
-    const encryptedToken = localStorage.getItem('access_token');
+    const encryptedToken = localStorage.getItem('auth_token');
     return encryptedToken ? decryptToken(encryptedToken) : '';
   } catch {
     return '';
@@ -29,13 +29,13 @@ export default createStore({
   mutations: {
     clearToken(state) {
       state.token = '';
-      localStorage.removeItem('access_token');
+      localStorage.removeItem('auth_token');
     },
     setToken(state, token) {
       state.token = token;
       try {
         const encrypted = encryptToken(token);
-        localStorage.setItem('access_token', encrypted);
+        localStorage.setItem('auth_token', encrypted);
       } catch (e) {
         console.warn('Ошибка при шифровании токена:', e);
       }
@@ -52,7 +52,7 @@ export default createStore({
     logout(state) {
       state.token = '';
       state.user = {};
-      localStorage.removeItem('access_token');
+      localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
     },
     setAuthChecked(state, value) {
@@ -79,12 +79,24 @@ export default createStore({
       }
 
       try {
-        const response = await api.get('/validate_token');
+        const response = await api.get('/validate_token', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         if (response.data.valid) {
           const user = getDecryptedUser();
           commit('setUser', user);
           commit('setToken', token);
+          // ✅ УСТАНАВЛИВАЕМ ИНТЕРЦЕПТОР только после успешной валидации токена
+          api.interceptors.request.use(
+            (config) => {
+              config.headers.Authorization = `Bearer ${token}`;
+              return config;
+            },
+            (error) => Promise.reject(error)
+          );
         } else {
           commit('logout');
         }
