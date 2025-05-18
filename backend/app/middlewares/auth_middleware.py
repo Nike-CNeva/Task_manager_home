@@ -30,7 +30,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
         token_part = None
 
         if not auth_header:
-            if request.url.path in PUBLIC_PATHS:
+            if (
+                request.url.path in PUBLIC_PATHS
+                or request.url.path.startswith("/static")
+                or request.url.path == "/favicon.ico"
+            ):
                 return await call_next(request)
             logger.warning("❌ Токен не передан, доступ запрещён")
             request.state.user_id = None
