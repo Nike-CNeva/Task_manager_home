@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Awaitable, Callable, Dict, Optional, Union
-from jose import jwt, JWTError
+from jose import ExpiredSignatureError, jwt, JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import APIRouter, Form, Request, HTTPException, Response, status, Depends
 from passlib.context import CryptContext
@@ -54,6 +54,18 @@ class AuthMiddleware(BaseHTTPMiddleware):
             logger.debug(f"📦 Распакованный payload: {payload}")
             if payload:
                 request.state.user_id = payload.get("user_id")
+                # Добавляем логирование оставшегося времени токена
+                exp_timestamp = payload.get("exp")
+                if exp_timestamp:
+                    now = datetime.now(timezone.utc).timestamp()
+                    remaining = exp_timestamp - now
+                    if remaining > 0:
+                        logger.info(f"⏳ Остаток времени жизни токена: {remaining:.2f} секунд")
+                    else:
+                        logger.warning("❌ Токен просрочен!")
+                else:
+                    logger.warning("⚠️ В payload нет поля 'exp'")
+
             else:
                 logger.warning("❌ Payload пустой")
                 request.state.user_id = None
@@ -109,12 +121,12 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
 
 
 def decode_access_token(token: str):
-    """
-    Декодирует JWT-токен и проверяет его корректность.
-    """
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
+    except ExpiredSignatureError:
+        print("❌ Токен просрочен")
+        return None
     except JWTError as e:
         print(f"❌ Ошибка при декодировании токена: {e}")
         return None
