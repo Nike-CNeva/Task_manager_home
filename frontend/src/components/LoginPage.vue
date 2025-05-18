@@ -51,7 +51,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import api from '@/utils/axios';
 import { mapActions } from 'vuex';
 
 export default {
@@ -66,40 +66,38 @@ export default {
   methods: {
     ...mapActions(['login']),
     async submitForm() {
-      this.error = '';
-      if (!this.username || !this.password) {
-        this.error = 'Пожалуйста, заполните все поля.';
-        return;
-      }
-
-      this.isLoading = true;
-
-      try {
-        const response = await axios.post('/login', {
-          username: this.username,
-          password: this.password
-        });
-
-        if (response.data.access_token) {
-          this.login({ token: response.data.access_token });
-
-          localStorage.setItem('auth_token', response.data.access_token);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
-
-          this.$router.push('/');
-        } else {
-          this.error = 'Ошибка авторизации: отсутствуют данные пользователя.';
-        }
-      } catch (error) {
-        if (error.response) {
-          this.error = `Ошибка: ${error.response.data.detail || 'Не удалось войти в систему.'}`;
-        } else {
-          this.error = 'Сетевая ошибка. Проверьте подключение и попробуйте снова.';
-        }
-      } finally {
-        this.isLoading = false;
-      }
+    this.error = '';
+    if (!this.username || !this.password) {
+      this.error = 'Пожалуйста, заполните все поля.';
+      return;
     }
+
+    this.isLoading = true;
+
+    try {
+      const response = await api.post('/login', {
+        username: this.username,
+        password: this.password
+      });
+
+      if (response.data.access_token && response.data.user) {
+        // Передаем токен и пользователя сразу в Vuex action
+        await this.login({ token: response.data.access_token, user: response.data.user });
+
+        this.$router.push('/');
+      } else {
+        this.error = 'Ошибка авторизации: отсутствуют данные пользователя.';
+      }
+    } catch (error) {
+      if (error.response) {
+        this.error = `Ошибка: ${error.response.data.detail || 'Не удалось войти в систему.'}`;
+      } else {
+        this.error = 'Сетевая ошибка. Проверьте подключение и попробуйте снова.';
+      }
+    } finally {
+      this.isLoading = false;
+    }
+  }
   }
 };
 </script>

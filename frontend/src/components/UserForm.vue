@@ -47,8 +47,8 @@
   </template>
   
   <script>
-  import { fetchWithToken } from '@/utils/api';  // Импортируем функцию для запросов
-
+import api from '@/utils/axios';
+  
   export default {
     name: 'UserForm',
     data() {
@@ -72,16 +72,19 @@
       const { id } = this.$route.params;
       this.editMode = !!id;
       this.userId = id;
-      
+  
       try {
-        const metaRes = await fetchWithToken(this.editMode 
-          ? `/admin/users/${id}/edit` 
-          : `/admin/users/create`); // Используем fetchWithToken
-        const metaData = metaRes;
-
+        const token = localStorage.getItem('access_token');
+        if (!token) throw new Error('Токен не найден, пожалуйста, войдите в систему.');
+  
+        const url = this.editMode
+          ? `/admin/users/${id}/edit`
+          : `/admin/users/create`;
+  
+        const { data: metaData } = await api.get(url);
         this.roles = metaData.roles;
         this.workshops = metaData.workshops;
-
+  
         if (this.editMode) {
           const u = metaData.user_obj;
           this.form.name = u.name;
@@ -93,38 +96,39 @@
         }
       } catch (err) {
         console.error("Ошибка при загрузке данных:", err);
+        alert(`Ошибка при загрузке данных: ${err.message}`);
       }
     },
     methods: {
       async submitForm() {
         const payload = { ...this.form };
-
+  
         if (this.editMode) {
           payload.id = this.userId;
-          // Если не меняем пароль — можно удалить поле или поставить "заглушку"
+          // Если не меняем пароль — можно удалить поле или поставить заглушку
           // delete payload.password;
         }
-
+  
         try {
-          const response = await fetchWithToken('/admin/users/save', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();  // Получаем данные ответа
-
-    if (response.ok) {
-      // Если в ответе есть поле redirect_url, выполняем редирект
-      if (data.redirect_url) {
-        this.$router.push(data.redirect_url); // Перенаправляем на новый URL
+          const token = localStorage.getItem('access_token');
+          if (!token) throw new Error('Токен не найден, пожалуйста, войдите в систему.');
+  
+          const { data, status } = await api.post('/admin/users/save', payload);
+  
+          if (status === 200) {
+            if (data.redirect_url) {
+              this.$router.push(data.redirect_url);
+            } else {
+              alert('Данные успешно сохранены!');
+            }
+          } else {
+            alert(`Ошибка: ${data.message || 'Неизвестная ошибка'}`);
+          }
+        } catch (error) {
+          alert(`Ошибка: ${error.response?.data?.message || error.message}`);
+        }
       }
-    } else {
-      alert(`Ошибка: ${data.message || 'Неизвестная ошибка'}`);
-    }
-  } catch (error) {
-    alert(`Ошибка: ${error.message}`);
-  }
-}
     }
   };
-</script>
+  </script>
+  

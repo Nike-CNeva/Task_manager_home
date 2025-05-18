@@ -59,7 +59,8 @@
   
   <script setup>
   import { ref, reactive, onMounted } from 'vue';
-  import ProductForm from './ProductForm.vue'; // Компонент для одного изделия
+  import ProductForm from './ProductForm.vue';
+  import api from '@/utils/axios';
   
   const form = reactive({
     task_number: '',
@@ -76,19 +77,25 @@
   const products = ref([]);
   
   onMounted(async () => {
-  // Загружаем данные с API
-  const customersResponse = await fetch('/customers/');
-  customers.value = await customersResponse.json();
-  console.log("Customers:", customers.value); // Выводим данные клиентов в консоль
+    try {
+      const [customersResponse, managersResponse, statusesResponse] = await Promise.all([
+        api.get('/customers/'),
+        api.get('/managers/'),
+        api.get('/statuses/'),
+      ]);
   
-  const managersResponse = await fetch('/managers/');
-  managers.value = await managersResponse.json();
-  console.log("Managers:", managers.value); // Выводим данные менеджеров в консоль
-
-  const statusesResponse = await fetch('/statuses/');
-  statuses.value = await statusesResponse.json();
-  console.log("Statuses:", statuses.value); // Выводим данные статусов в консоль
-});
+      customers.value = customersResponse.data;
+      console.log("Customers:", customers.value);
+  
+      managers.value = managersResponse.data;
+      console.log("Managers:", managers.value);
+  
+      statuses.value = statusesResponse.data;
+      console.log("Statuses:", statuses.value);
+    } catch (error) {
+      console.error("Ошибка загрузки справочников:", error);
+    }
+  });
   
   function handleCustomerChange() {
     if (form.customer_id !== 'new') newCustomer.value = '';
@@ -126,19 +133,20 @@
     formData.append('bid_data', JSON.stringify(payload));
     files.value.forEach(file => formData.append('files', file));
   
-    const response = await fetch('/bids/create/', {
-      method: 'POST',
-      body: formData,
-    });
+    try {
+      await api.post('/bids/create/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
   
-    const result = await response.json();
-    if (response.ok) {
       alert('Заявка успешно создана!');
-    } else {
-      alert('Ошибка: ' + result.message);
+    } catch (error) {
+      alert('Ошибка: ' + (error.response?.data?.message || error.message));
     }
   }
   </script>
+  
   
   <style scoped>
   /* Можно скопировать стили из HTML или написать на Tailwind / Bootstrap */

@@ -94,46 +94,58 @@
   </template>
   
   <script setup lang="js">
-  import { ref, reactive, watch, onMounted } from 'vue';
-  
+import { ref, reactive, watch, onMounted } from 'vue';
+import api from '@/utils/axios'; // твой axios-инстанс
 
-  const emits = defineEmits(['update', 'remove']);
-  
-  const productData = reactive({
-    product_id: '',
-    material: '',
-    material_type: '',
-    thickness: '',
-    product_details: {},
-    sheets: [],
-  });
-  
-  const productOptions = ref([]);
-  const productFields = ref([]);
-  const materialForms = ref([]);
-  const materialTypes = ref([]);
-  const thicknesses = ref([]);
-  const showSheets = ref(false);
-  
-  const sheets = ref([]);
-  
-  const urgency = ref('');
-  const comment = ref('');
-  const workshops = ref([]);
-  const employees = ref([]);
-  
-  const urgencies = ref([]);
-  const allWorkshops = ref([]);
-  const allEmployees = ref([]);
-  
-  onMounted(async () => {
-    productOptions.value = await (await fetch('/products/')).json();
-    urgencies.value = await (await fetch('/urgency/')).json();
-    allWorkshops.value = await (await fetch('/workshops/')).json();
-    allEmployees.value = await (await fetch('/employee/')).json();
-  });
-  
-  watch([productData, urgency, comment, workshops, employees, sheets], () => {
+const emits = defineEmits(['update', 'remove']);
+
+const productData = reactive({
+  product_id: '',
+  material: '',
+  material_type: '',
+  thickness: '',
+  product_details: {},
+  sheets: [],
+});
+
+const productOptions = ref([]);
+const productFields = ref([]);
+const materialForms = ref([]);
+const materialTypes = ref([]);
+const thicknesses = ref([]);
+const showSheets = ref(false);
+
+const sheets = ref([]);
+
+const urgency = ref('');
+const comment = ref('');
+const workshops = ref([]);
+const employees = ref([]);
+
+const urgencies = ref([]);
+const allWorkshops = ref([]);
+const allEmployees = ref([]);
+
+onMounted(async () => {
+  try {
+    const [productsRes, urgenciesRes, workshopsRes, employeesRes] = await Promise.all([
+      api.get('/products/'),
+      api.get('/urgency/'),
+      api.get('/workshops/'),
+      api.get('/employee/'),
+    ]);
+    productOptions.value = productsRes.data;
+    urgencies.value = urgenciesRes.data;
+    allWorkshops.value = workshopsRes.data;
+    allEmployees.value = employeesRes.data;
+  } catch (error) {
+    console.error('Ошибка загрузки данных:', error);
+  }
+});
+
+watch(
+  [productData, urgency, comment, workshops, employees, sheets],
+  () => {
     emits('update', {
       ...productData,
       urgency: urgency.value,
@@ -142,48 +154,70 @@
       employees: [...employees.value],
       sheets: sheets.value,
     });
-  }, { deep: true });
-  
-  async function handleProductChange() {
+  },
+  { deep: true }
+);
+
+async function handleProductChange() {
+  try {
     const pid = productData.product_id;
-    productFields.value = await (await fetch(`/products/${pid}/fields`)).json();
-    materialForms.value = await (await fetch(`/material/forms/${pid}`)).json();
+    const [fieldsRes, formsRes] = await Promise.all([
+      api.get(`/products/${pid}/fields`),
+      api.get(`/material/forms/${pid}`),
+    ]);
+    productFields.value = fieldsRes.data;
+    materialForms.value = formsRes.data;
+
     if (['CASSETTE', 'SHEET'].includes(pid)) {
       showSheets.value = true;
     } else {
       showSheets.value = false;
       sheets.value = [];
     }
+  } catch (error) {
+    console.error('Ошибка при изменении продукта:', error);
   }
-  
-  function handleSpecialField(name) {
-    if (name === 'profile_type_id' || name === 'cassette_type_id') {
-      // просто триггерим пересборку данных
-    }
+}
+
+function handleSpecialField(name) {
+  if (name === 'profile_type_id' || name === 'cassette_type_id') {
+    // Просто триггерим пересборку данных
   }
-  
-  async function loadMaterialTypes() {
+}
+
+async function loadMaterialTypes() {
+  try {
     const pid = productData.product_id;
     const form = productData.material;
-    materialTypes.value = await (await fetch(`/material/types/${pid}/${form}`)).json();
+    const res = await api.get(`/material/types/${pid}/${form}`);
+    materialTypes.value = res.data;
     if (materialTypes.value.length) {
       productData.material_type = materialTypes.value[0].name;
       await loadThickness();
     }
+  } catch (error) {
+    console.error('Ошибка загрузки типов материала:', error);
   }
-  
-  async function loadThickness() {
-    thicknesses.value = await (await fetch(`/material/thickness/${productData.material_type}`)).json();
+}
+
+async function loadThickness() {
+  try {
+    const res = await api.get(`/material/thickness/${productData.material_type}`);
+    thicknesses.value = res.data;
+  } catch (error) {
+    console.error('Ошибка загрузки толщин:', error);
   }
-  
-  function addSheet() {
-    sheets.value.push({ width: 0, length: 0, quantity: 1 });
-  }
-  
-  function removeSheet() {
-    sheets.value.pop();
-  }
-  </script>
+}
+
+function addSheet() {
+  sheets.value.push({ width: 0, length: 0, quantity: 1 });
+}
+
+function removeSheet() {
+  sheets.value.pop();
+}
+</script>
+
   
   <style scoped>
   .product-container {

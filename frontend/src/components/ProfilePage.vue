@@ -44,6 +44,7 @@
 <script setup>
 import { reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import api from '@/utils/axios';
 
 const router = useRouter()
 
@@ -58,26 +59,17 @@ const form = reactive({
 })
 
 const isEmptyOrDefault = (value) => !value || !value.trim() || value.trim().toLowerCase() === 'не указано'
-
 const isCyrillic = (text) => /^[А-ЯЁ][а-яё]+$/.test(text.trim())
 
 onMounted(async () => {
   try {
-    const token = localStorage.getItem('auth_token')
+    const token = localStorage.getItem('access_token')
     if (!token) {
       throw new Error('Токен не найден! Пожалуйста, войдите в систему.')
     }
 
-    const response = await fetch('/profile', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    })
-    if (!response.ok) throw new Error('Ошибка при загрузке данных. Пожалуйста, попробуйте позже.')
+    const { data } = await api.get('/profile')
 
-    const data = await response.json()
-
-    // Заполняем форму, если данные есть
     form.name = data.name || ''
     form.firstname = data.firstname || ''
     form.email = data.email || ''
@@ -119,20 +111,12 @@ const handleSubmit = async () => {
   }
 
   try {
-    const token = localStorage.getItem('auth_token')
+    const token = localStorage.getItem('access_token')
     if (!token) {
       throw new Error('Токен не найден! Пожалуйста, войдите в систему.')
     }
-    const response = await fetch('/profile', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(form),
-    })
 
-    if (!response.ok) throw new Error('Ошибка при сохранении данных. Пожалуйста, попробуйте позже.')
+    await api.post('/profile', form)
 
     alert('Данные успешно сохранены!')
     router.push('/home')
@@ -141,6 +125,7 @@ const handleSubmit = async () => {
   }
 }
 </script>
+
 
 <style scoped>
 .container {

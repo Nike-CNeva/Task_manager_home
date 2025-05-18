@@ -37,7 +37,7 @@
               </span>
             </td>
             <td>
-              <a :href="`/admin/users/${user.id}/edit`" class="btn btn-primary btn-sm">Редактировать</a>
+              <router-link :to="`/admin/users/${user.id}/edit`" class="btn btn-primary btn-sm">Редактировать</router-link>
               <button @click="confirmDelete(user)" class="btn btn-danger btn-sm">Удалить</button>
             </td>
           </tr>
@@ -49,8 +49,8 @@
   </template>
   
   <script>
-  import { fetchWithToken } from '@/utils/api';  // Импортируем функцию
-
+  import api from '@/utils/axios';  // Настроенный axios
+  
   export default {
     name: "UserManagement",
     data() {
@@ -61,29 +61,22 @@
     methods: {
       async fetchUsers() {
         try {
-          const data = await fetchWithToken("/admin/users");  // Используем fetchWithToken
-          this.users = data.users || [];  // Присваиваем пустой массив, если нет данных
+          const { data } = await api.get('/admin/users');
+          this.users = data || [];
         } catch (error) {
           console.error("Ошибка загрузки пользователей:", error);
-          this.users = [];  // Присваиваем пустой массив в случае ошибки
+          this.users = [];
         }
       },
       async confirmDelete(user) {
-        if (confirm(`Удалить пользователя ${user.name}?`)) {
-          try {
-            const response = await fetchWithToken(`/admin/users/${user.id}/delete`, {
-              method: "GET",  // Можно заменить на DELETE, если на бэке реализовано
-            });
-
-            if (response.ok) {
-              this.users = this.users.filter(u => u.id !== user.id);
-            } else {
-              const data = await response.json();
-              alert(`Ошибка: ${data.detail}`);
-            }
-          } catch (error) {
-            alert("Не удалось удалить пользователя");
-          }
+        if (!confirm(`Удалить пользователя ${user.name}?`)) return;
+  
+        try {
+          await api.delete(`/admin/users/${user.id}/delete`);
+          this.users = this.users.filter(u => u.id !== user.id);
+        } catch (error) {
+          const message = error.response?.data?.detail || 'Не удалось удалить пользователя';
+          alert(`Ошибка: ${message}`);
         }
       },
     },
@@ -91,5 +84,6 @@
       this.fetchUsers();
     },
   };
-</script>
+  </script>
+  
   

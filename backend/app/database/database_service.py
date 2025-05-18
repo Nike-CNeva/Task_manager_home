@@ -1,3 +1,4 @@
+from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -16,11 +17,19 @@ class AsyncDatabaseService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_all(self, model: Type[T], skip: int = 0, limit: int = 100) -> Sequence[T]:
+    async def get_all(
+        self,
+        model: Type[T],
+        skip: int = 0,
+        limit: int = 100,
+        options: Optional[List[Any]] = None
+    ) -> Sequence[T]:
         try:
-            result = await self.db.execute(
-                select(model).offset(skip).limit(limit)
-            )
+            stmt: Select = select(model).offset(skip).limit(limit)
+            if options:
+                for opt in options:
+                    stmt = stmt.options(opt)
+            result = await self.db.execute(stmt)
             return result.scalars().all()
         except SQLAlchemyError as e:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

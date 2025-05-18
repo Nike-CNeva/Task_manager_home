@@ -23,9 +23,8 @@ class UserRead(UserBase):
 class UserCreate(UserBase):
     password: str = Field(..., description="Пароль пользователя")
 
-class UserSaveForm(UserBase):
+class UserSaveForm(UserCreate):
     id: int
-    password: str = Field(..., description="Пароль пользователя")
     workshops: List[WorkshopEnum] = Field(..., description="Список цехов")
 
 
@@ -35,13 +34,5 @@ class PasswordChangeRequest(BaseModel):
     confirm_password: str
     
 
-class UserWithWorkshops(BaseModel):
-    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
-    id: int
-    name: str
-    firstname: str
-    username: str
-    email: str
-    telegram: str
-    user_type: str
+class UserWithWorkshops(UserRead):
     workshops: List[str]

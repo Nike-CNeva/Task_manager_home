@@ -22,20 +22,22 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 logger = logging.getLogger("auth_middleware")
 
-PUBLIC_PATHS = {"/", "/login", "/docs", "/redoc", "/openapi.json"}
+PUBLIC_PATHS = {"/","/home", "/login", "/docs", "/redoc", "/openapi.json"}
+PUBLIC_API_PATHS = {"/api/login"}
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        if (
+            request.url.path in PUBLIC_PATHS
+            or request.url.path.startswith("/static")
+            or request.url.path == "/favicon.ico"
+            or any(request.url.path.startswith(path) for path in PUBLIC_API_PATHS)
+        ):
+            return await call_next(request)
         auth_header = request.headers.get("Authorization")
         token_part = None
 
         if not auth_header:
-            if (
-                request.url.path in PUBLIC_PATHS
-                or request.url.path.startswith("/static")
-                or request.url.path == "/favicon.ico"
-            ):
-                return await call_next(request)
             logger.warning("❌ Токен не передан, доступ запрещён")
             request.state.user_id = None
             return Response("Unauthorized", status_code=401)
@@ -147,8 +149,7 @@ async def login_for_access_token(response: Response, username: str = Form(...), 
     # Генерация токена с помощью create_access_token
     payload = {"user_id": user.id}
     token = create_access_token(payload, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
-    # Сохранение токена в куки
-    response.set_cookie(key="access_token", value=token, httponly=True, max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES*60)
+
     return {"access_token": token, "token_type": "bearer"}
 
 @router.get("/validate_token")

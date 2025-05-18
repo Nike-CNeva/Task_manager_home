@@ -38,6 +38,8 @@
   </template>
   
   <script>
+  import api from '@/utils/axios';
+  
   export default {
     name: "ChangePassword",
     data() {
@@ -67,33 +69,15 @@
           return;
         }
   
-        // Отправка запроса на сервер
         try {
-          const token = localStorage.getItem('auth_token')
-          if (!token) {
-            throw new Error('Токен не найден! Пожалуйста, войдите в систему.')
-          }
-          const response = await fetch("/profile/password", {
-            method: "POST",
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(this.form),
-          });
+          await api.post('/profile/password', this.form);
   
-          const data = await response.json();
-  
-          if (!response.ok) {
-            this.error = data.detail || "Ошибка при смене пароля.";
-          } else {
-            this.success = "Пароль успешно изменён.";
-            this.form.current_password = "";
-            this.form.new_password = "";
-            this.form.confirm_password = "";
-          }
-        } catch (e) {
-          this.error = "Произошла ошибка при отправке запроса.";
+          this.success = "Пароль успешно изменён.";
+          this.form.current_password = "";
+          this.form.new_password = "";
+          this.form.confirm_password = "";
+        } catch (error) {
+          this.error = error.response?.data?.detail || "Ошибка при смене пароля.";
         }
       },
     },
@@ -105,4 +89,5 @@
     margin-top: 1rem;
   }
   </style>
+  
   

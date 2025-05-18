@@ -9,12 +9,12 @@ import UserForm from './components/UserForm.vue';
 import ChangePassword from './components/ChangePassword.vue';
 import CreateBid from './components/CreateBid.vue';
 import store from './store'; // Vuex
-import axios from 'axios';
+import api from './utils/axios';
 
 // Добавляем интерцептор для токена
-axios.interceptors.request.use(
+api.interceptors.request.use(
   (config) => {
-    const token = store.state.token;
+    const token = store.getters.getToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -40,7 +40,17 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 });
+// Простой guard авторизации
+router.beforeEach((to, from, next) => {
+  const publicPages = ['/', '/login'];
+  const authRequired = !publicPages.includes(to.path);
+  const loggedIn = store.getters.isAuthenticated;
 
+  if (authRequired && !loggedIn) {
+    return next('/login');
+  }
+  next();
+});
 // ⚠️ ВАЖНО: Ждём загрузки пользователя перед монтированием
 store.dispatch('checkToken').finally(() => {
   const app = createApp(App);

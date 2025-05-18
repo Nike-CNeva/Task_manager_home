@@ -1,68 +1,98 @@
 import { createStore } from 'vuex';
-import axios from 'axios';
+import api from '@/utils/axios';
+import { encrypt, decrypt, encryptToken, decryptToken } from '@/utils/crypto';
 
-let user = {};
-try {
-  const rawUser = localStorage.getItem('user');
-  if (rawUser && rawUser !== 'undefined') {
-    user = JSON.parse(rawUser);
+function getDecryptedToken() {
+  try {
+    const encryptedToken = localStorage.getItem('access_token');
+    return encryptedToken ? decryptToken(encryptedToken) : '';
+  } catch {
+    return '';
   }
-} catch (e) {
-  console.warn('Ошибка при разборе user из localStorage:', e);
+}
+
+function getDecryptedUser() {
+  try {
+    const rawUser = localStorage.getItem('user');
+    return rawUser ? decrypt(rawUser) : {};
+  } catch {
+    return {};
+  }
 }
 
 export default createStore({
   state: {
-    token: localStorage.getItem('access_token') || '',
-    user: user
+    token: getDecryptedToken(),
+    user: getDecryptedUser(),
+    authChecked: false,
   },
   mutations: {
     clearToken(state) {
-      state.token = null;  // Удаляем токен
+      state.token = '';
+      localStorage.removeItem('access_token');
     },
     setToken(state, token) {
       state.token = token;
-      localStorage.setItem('access_token', token);
+      try {
+        const encrypted = encryptToken(token);
+        localStorage.setItem('access_token', encrypted);
+      } catch (e) {
+        console.warn('Ошибка при шифровании токена:', e);
+      }
     },
     setUser(state, user) {
       state.user = user;
-      localStorage.setItem('user', JSON.stringify(user));
+      try {
+        const encryptedUser = encrypt(user);
+        localStorage.setItem('user', encryptedUser);
+      } catch (e) {
+        console.warn('Ошибка при шифровании user:', e);
+      }
     },
     logout(state) {
       state.token = '';
       state.user = {};
       localStorage.removeItem('access_token');
       localStorage.removeItem('user');
-    }
+    },
+    setAuthChecked(state, value) {
+      state.authChecked = value;
+    },
   },
   actions: {
     login({ commit }, { token, user }) {
       commit('setToken', token);
       commit('setUser', user);
+      commit('setAuthChecked', true);
     },
     logout({ commit }) {
       commit('logout');
+      commit('setAuthChecked', true);
     },
-    // Проверка токена при запуске приложения
-    checkToken({ commit }) {
-      const token = localStorage.getItem('access_token');
-      if (token) {
-        axios
-          .get('/validate_token', { headers: { Authorization: `Bearer ${token}` } })
-          .then((response) => {
-            if (response.data.valid) {
-              // Токен валиден, можно загрузить данные пользователя
-              const user = JSON.parse(localStorage.getItem('user'));
-              commit('setUser', user);
-            } else {
-              commit('logout'); // Если токен невалиден, выходим
-            }
-          })
-          .catch(() => {
-            commit('logout'); // Ошибка на сервере или при проверке токена
-          });
-      } else {
-        commit('logout'); // Нет токена - выходим
+    async checkToken({ commit }) {
+      const token = getDecryptedToken();
+
+      if (!token) {
+        commit('logout');
+        commit('setAuthChecked', true);
+        return;
+      }
+
+      try {
+        const response = await api.get('/validate_token');
+
+        if (response.data.valid) {
+          const user = getDecryptedUser();
+          commit('setUser', user);
+          commit('setToken', token);
+        } else {
+          commit('logout');
+        }
+      } catch (e) {
+        console.warn('Ошибка при проверке токена:', e);
+        commit('logout');
+      } finally {
+        commit('setAuthChecked', true);
       }
     }
   },
@@ -75,6 +105,9 @@ export default createStore({
     },
     isAuthenticated(state) {
       return !!state.token;
+    },
+    isAuthChecked(state) {
+      return state.authChecked;
     }
   }
 });

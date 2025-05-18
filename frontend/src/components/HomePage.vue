@@ -25,12 +25,14 @@
 
 <script>
 import { mapState } from 'vuex';
+import api from '@/utils/axios'; // импорт твоего axios-инстанса с токеном
 
 export default {
   data() {
     return {
       currentTime: '',
-      user: null
+      user: null,
+      timerId: null,
     };
   },
   computed: {
@@ -47,26 +49,17 @@ export default {
       this.getData();
     }
     this.updateTime();
-    setInterval(this.updateTime, 1000);
+    this.timerId = setInterval(this.updateTime, 1000);
+  },
+  beforeUnmount() {
+    clearInterval(this.timerId); // очищаем таймер при размонтировании компонента
   },
   methods: {
-    async fetchWithToken(url, options = {}) {
-      // Пример функции fetch с токеном и обработкой ошибок
-      const baseUrl = ''; // если нужно, добавь базовый URL API
-      const response = await fetch(baseUrl + url, options);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return await response.json();
-    },
-
     async getData() {
       try {
-        const data = await this.fetchWithToken('/home', {
-          headers: {
-            Authorization: `Bearer ${this.token}`,
-          }
-        });
+        // axios уже автоматически добавит Authorization из интерсептора
+        const { data } = await api.get('/home');
+
         this.currentTime = new Date(data.current_datetime).toLocaleString();
         this.user = data.user;
       } catch (error) {
@@ -80,6 +73,7 @@ export default {
   }
 };
 </script>
+
 
 <style scoped>
 

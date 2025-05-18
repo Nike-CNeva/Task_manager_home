@@ -6,7 +6,7 @@ from backend.app.models.enums import UserTypeEnum
 from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
 from backend.app.schemas.user import UserSaveForm
-
+from sqlalchemy.orm import selectinload
 from backend.app.database.database_service import AsyncDatabaseService
 import logging
 
@@ -28,9 +28,14 @@ async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User
     return user 
 
 async def get_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> Sequence[User]:
-    """Получает список пользователей."""
+    """Получает список пользователей с загруженными цехами."""
     db_service = AsyncDatabaseService(db)
-    return await db_service.get_all(User, skip, limit)  # нужно ожидать асинхронный запрос
+    return await db_service.get_all(
+        User,
+        skip=skip,
+        limit=limit,
+        options=[selectinload(User.workshops)]
+    )
 
 async def create_user(db: AsyncSession, user_data: UserSaveForm, workshop_ids: List[int]) -> User:
     """Создает нового пользователя."""
