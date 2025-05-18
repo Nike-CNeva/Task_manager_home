@@ -42,7 +42,7 @@ async def create_user(db: AsyncSession, user_data: UserSaveForm, workshop_ids: L
         raise HTTPException(status_code=400, detail="Пользователь с таким именем уже существует")
 
     # Хешируем пароль
-    hashed_password = get_password_hash(user_data.password)
+    hashed_password = await get_password_hash(user_data.password)
 
     # Преобразуем user_type в Enum
     try:

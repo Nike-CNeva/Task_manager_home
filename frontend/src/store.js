@@ -48,7 +48,7 @@ export default createStore({
       const token = localStorage.getItem('access_token');
       if (token) {
         axios
-          .get('/api/validate_token', { headers: { Authorization: `Bearer ${token}` } })
+          .get('/validate_token', { headers: { Authorization: `Bearer ${token}` } })
           .then((response) => {
             if (response.data.valid) {
               // Токен валиден, можно загрузить данные пользователя

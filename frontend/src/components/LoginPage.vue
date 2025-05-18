@@ -86,7 +86,7 @@ export default {
           localStorage.setItem('auth_token', response.data.access_token);
           localStorage.setItem('user', JSON.stringify(response.data.user));
 
-          this.$router.push('/home');
+          this.$router.push('/');
         } else {
           this.error = 'Ошибка авторизации: отсутствуют данные пользователя.';
         }

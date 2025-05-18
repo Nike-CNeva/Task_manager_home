@@ -20,6 +20,8 @@ class UserBase(BaseModel):
 class UserRead(UserBase):
     id: int = Field(..., description="ID пользователя")
 
+class UserCreate(UserBase):
+    password: str = Field(..., description="Пароль пользователя")
 
 class UserSaveForm(UserBase):
     id: int

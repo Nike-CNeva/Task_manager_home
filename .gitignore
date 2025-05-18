@@ -22,7 +22,8 @@ build/
 
 # === Alembic ===
 alembic/versions/*.pyc
-
+alembic/
+alembic.ini
 # === Node.js (frontend) ===
 frontend/node_modules/
 frontend/dist/
