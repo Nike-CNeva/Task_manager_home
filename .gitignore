@@ -56,3 +56,4 @@ docker-compose.override.yml
 
 # === Firebase (если временно используешь) ===
 firebase-debug.log
+node_modules

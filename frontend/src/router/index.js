@@ -10,22 +10,21 @@ import CreateBid from '../components/CreateBid.vue';
 // другие страницы...
 
 const routes = [
-  { path: '/', name: 'HomePage', component: HomePage},
-  { path: '/tasks', component: TasksPage},
-  { path: '/login', name: 'LoginPage', component: LoginPage},
-  { path: '/profile', component: ProfilePage},
-  { path: '/profile/password', component: ChangePassword},
-  { path: '/tasks/new', component: NewTaskPage},
-  { path: '/workshops', component: WorkshopsPage},
-  { path: '/admin/users', name: 'UserManagement', component: UserManagement},
-  { path: '/admin/users/create', name: 'UserCreate', component: UserForm},
-  { path: '/admin/users/:id/edit', name: 'UserEdit', component: UserForm, props: true},
-  { path: '/create-bid', name: 'CreateBid', component: CreateBid},
-  // другие маршруты...
+  { path: '/', name: 'HomePage', component: HomePage, meta: { requiresAuth: true } },
+  { path: '/tasks', component: TasksPage, meta: { requiresAuth: true } },
+  { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
+  { path: '/profile/password', component: ChangePassword, meta: { requiresAuth: true } },
+  { path: '/tasks/new', component: NewTaskPage, meta: { requiresAuth: true } },
+  { path: '/workshops', component: WorkshopsPage, meta: { requiresAuth: true } },
+  { path: '/admin/users', name: 'UserManagement', component: UserManagement, meta: { requiresAuth: true } },
+  { path: '/admin/users/create', name: 'UserCreate', component: UserForm, meta: { requiresAuth: true } },
+  { path: '/admin/users/:id/edit', name: 'UserEdit', component: UserForm, props: true, meta: { requiresAuth: true } },
+  { path: '/create-bid', name: 'CreateBid', component: CreateBid, meta: { requiresAuth: true } },
+  { path: '/login', name: 'LoginPage', component: LoginPage }, // доступен без авторизации
 ];
 
 const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 });
 router.beforeEach((to, from, next) => {

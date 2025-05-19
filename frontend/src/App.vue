@@ -1,20 +1,22 @@
 <template>
   <div id="app">
-    <!-- Навигация -->
     <AppNavbar />
 
-    <!-- Основной контент -->
-    <div class="container mt-5">
-      <router-view /> <!-- Здесь будет отображаться текущая страница -->
+    <div class="container mt-5" v-if="authChecked">
+      <router-view />
     </div>
 
-    <!-- Подвал -->
+    <!-- Пока не проверили авторизацию — можно показать простой лоадер или пустой экран -->
+    <div v-else class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+      <span>Загрузка...</span>
+    </div>
+
     <AppFooter />
   </div>
 </template>
 
 <script>
-// Импортируем компоненты для навигации и подвала
+import { mapGetters } from 'vuex';
 import AppNavbar from './components/AppNavbar.vue';
 import AppFooter from './components/AppFooter.vue';
 
@@ -24,12 +26,23 @@ export default {
     AppNavbar,
     AppFooter,
   },
+  computed: {
+    ...mapGetters(['isAuthChecked']),
+    authChecked() {
+      return this.isAuthChecked;
+    },
+  },
+  created() {
+    if (!this.authChecked) {
+      this.$store.dispatch('checkToken');
+    }
+  },
 };
 </script>
 
 <style>
 /* Подключение глобальных стилей */
-@import "~bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap/dist/css/bootstrap.min.css";
 
 /* Дополнительные стили */
 body {

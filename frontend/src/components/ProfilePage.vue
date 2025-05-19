@@ -119,7 +119,7 @@ const handleSubmit = async () => {
     await api.post('/profile', form)
 
     alert('Данные успешно сохранены!')
-    router.push('/home')
+    router.push('/')
   } catch (e) {
     alert(`Ошибка: ${e.message}`)
   }

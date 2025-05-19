@@ -11,7 +11,7 @@ from backend.app.middlewares.auth_middleware import get_password_hash, verify_pa
 from backend.app.models.user import User
 from backend.app.models.workshop import Workshop, WorkshopEnum
 from backend.app.services import user_service
-
+from sqlalchemy.orm import selectinload
 
 
 router = APIRouter()
@@ -31,7 +31,8 @@ async def admin_users(db: AsyncSession = Depends(get_db), current_user: UserRead
             email=user.email,
             telegram=user.telegram,
             user_type=user.user_type.value,
-            workshops=[workshop.name for workshop in user.workshops]
+            workshops=[workshop.name for workshop in user.workshops],
+            is_active=user.is_active,
         )
         for user in users
     ]
@@ -102,7 +103,7 @@ async def save_user(
 
     return JSONResponse(content={"message": message, "redirect_url": "/admin/users"})
 
-@router.put("/admin/users/{user_id}/edit")
+@router.get("/admin/users/{user_id}/edit")
 async def edit_user_form(
     user_id: int,
     db: AsyncSession = Depends(get_db),
@@ -111,8 +112,12 @@ async def edit_user_form(
     if current_user.user_type != UserTypeEnum.ADMIN:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
 
-    # Получаем пользователя
-    user_select = select(User).where(User.id == user_id)
+    # Загружаем пользователя с цехами (workshops) сразу
+    user_select = (
+        select(User)
+        .options(selectinload(User.workshops))
+        .where(User.id == user_id)
+    )
     result_user = await db.execute(user_select)
     user_obj: User | None = result_user.scalar_one_or_none()
     if not user_obj:

@@ -56,11 +56,9 @@ router.beforeEach((to, from, next) => {
   }
 });
 // Асинхронный старт приложения
-store.dispatch('checkToken').finally(() => {
+store.dispatch('checkToken').then(() => {
   const app = createApp(App);
   app.use(store);
   app.use(router);
-
-  // Монтируем только после верификации токена
   app.mount('#app');
 });

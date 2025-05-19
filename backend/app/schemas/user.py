@@ -24,7 +24,7 @@ class UserCreate(UserBase):
     password: str = Field(..., description="Пароль пользователя")
 
 class UserSaveForm(UserCreate):
-    id: int
+    id: Optional[int] = Field(None, description="ID пользователя")
     workshops: List[WorkshopEnum] = Field(..., description="Список цехов")
 
 

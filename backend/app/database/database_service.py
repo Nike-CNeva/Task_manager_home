@@ -1,3 +1,4 @@
+from enum import Enum
 from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -80,7 +81,7 @@ class AsyncDatabaseService:
         try:
             db_item = await self.get_by_id(model, id)
             if db_item:
-                await self.db.delete(db_item)
+                self.db.delete(db_item)
                 await self.db.commit()
                 return True
             return False
@@ -119,3 +120,31 @@ class AsyncDatabaseService:
         except SQLAlchemyError as e:
             await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+    async def ensure_enum_seeded(
+        self,
+        model: Type[T],
+        enum_cls: Type[Enum],
+        enum_field: str = "name"
+    ) -> None:
+        try:
+            # Получаем существующие значения поля (например, name)
+            existing = await self.db.execute(select(getattr(model, enum_field)))
+            existing_values = {row[0] for row in existing.all()}
+
+            # Добавляем недостающие
+            new_items = []
+            for enum_item in enum_cls:
+                if enum_item not in existing_values:
+                    item_data = {enum_field: enum_item}
+                    new_items.append(model(**item_data))
+
+            if new_items:
+                self.db.add_all(new_items)
+                await self.db.commit()
+                print(f"[✓] Добавлены новые значения: {[item.name for item in new_items]}")
+            else:
+                print("[✓] Все значения из Enum уже присутствуют в таблице.")
+        except SQLAlchemyError as e:
+            await self.db.rollback()
+            raise HTTPException(status_code=500, detail=f"Enum seed error: {str(e)}")

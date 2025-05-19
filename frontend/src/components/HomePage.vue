@@ -58,7 +58,7 @@ export default {
     async getData() {
       try {
         // axios уже автоматически добавит Authorization из интерсептора
-        const { data } = await api.get('/home');
+        const { data } = await api.get('/');
 
         this.currentTime = new Date(data.current_datetime).toLocaleString();
         this.user = data.user;

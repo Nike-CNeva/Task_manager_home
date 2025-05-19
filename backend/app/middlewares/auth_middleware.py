@@ -1,15 +1,11 @@
 from datetime import datetime, timedelta, timezone
 import logging
-from typing import Any, Awaitable, Callable, Dict, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, Optional
 from jose import ExpiredSignatureError, jwt, JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import APIRouter, Form, Request, HTTPException, Response, status, Depends
+from fastapi import APIRouter, Request, Response
 from passlib.context import CryptContext
-from backend.app.core.dependencies import get_db
 from backend.app.core.settings import settings
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 
 router = APIRouter()
@@ -17,23 +13,23 @@ router = APIRouter()
 # Инициализация хэширования паролей
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# В зависимости от того, где вам нужно проверять токен
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 logger = logging.getLogger("auth_middleware")
 
-PUBLIC_PATHS = {"/","/home", "/login", "/docs", "/redoc", "/openapi.json"}
-PUBLIC_API_PATHS = {"/api/login"}
+PUBLIC_PATHS = {"/", "/login", "/docs", "/redoc", "/openapi.json"}
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-        if (
-            request.url.path in PUBLIC_PATHS
-            or request.url.path.startswith("/static")
-            or request.url.path == "/favicon.ico"
-            or any(request.url.path.startswith(path) for path in PUBLIC_API_PATHS)
-        ):
+        path = request.url.path
+
+        # Если маршрут не начинается с /api — пропускаем проверку авторизации
+        if not path.startswith("/api"):
             return await call_next(request)
+
+        # Далее проверяем публичные пути в /api, которые не требуют авторизации
+        if path in PUBLIC_PATHS:
+            return await call_next(request)
+        
         auth_header = request.headers.get("Authorization")
         token_part = None
 
@@ -133,43 +129,3 @@ def decode_auth_token(token: str):
         print(f"❌ Ошибка при декодировании токена: {e}")
         return None
 
-# Функция для извлечения токена из cookies
-async def get_token_from_cookie(request: Request) -> str:
-    token = request.cookies.get("auth_token")  # Получаем токен из куки
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return token
-
-@router.post("/token")
-async def login_for_auth_token(response: Response, username: str = Form(...), password: str = Form(...), db: AsyncSession = Depends(get_db)):
-    from services.user_service import get_user_by_username
-    user = await get_user_by_username(db, username)
-    if not user or not await verify_password(password, user.password):
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
-    # Генерация токена с помощью create_auth_token
-    payload = {"user_id": user.id}
-    token = create_auth_token(payload, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
-
-    return {"auth_token": token, "token_type": "bearer"}
-
-@router.get("/validate_token")
-async def validate_token(token: str = Depends(oauth2_scheme)) -> Dict[str, Optional[Union[str, int, bool]]]:
-    try:
-        payload = decode_auth_token(token)  # если decode_auth_token не async, await не нужен
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    if payload:
-        return {
-            "valid": True,
-            "user_id": payload.get("user_id"),
-            "username": payload.get("sub")
-        }
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or expired token",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
