@@ -16,7 +16,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 logger = logging.getLogger("auth_middleware")
 
-PUBLIC_PATHS = {"/", "/login", "/docs", "/redoc", "/openapi.json"}
+PUBLIC_PATHS = {"/", "/login", "/api/login", "/docs", "/redoc", "/openapi.json"}
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:

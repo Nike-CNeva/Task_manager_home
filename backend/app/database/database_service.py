@@ -7,6 +7,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from fastapi import HTTPException
 from typing import Any, List, Sequence, TypeVar, Type, Optional
 from typing import Protocol, runtime_checkable
+from sqlalchemy.orm import selectinload
 
 @runtime_checkable
 class HasID(Protocol):
@@ -35,13 +36,16 @@ class AsyncDatabaseService:
         except SQLAlchemyError as e:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    async def get_by_id(self, model: Type[T], id: int) -> Optional[T]:
+    async def get_by_id(self, model: Type[T], id: int, options: Optional[List] = None) -> Optional[T]:
         try:
-            result = await self.db.execute(select(model).where(model.id == id))
+            stmt = select(model).where(model.id == id)
+            if options:
+                for opt in options:
+                    stmt = stmt.options(opt)
+            result = await self.db.execute(stmt)
             return result.scalars().first()
         except SQLAlchemyError as e:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
     async def get_by_field(self, model: Type[T], field_name: str, field_value: Any) -> Optional[T]:
         try:
             field: InstrumentedAttribute[Any] = getattr(model, field_name)
@@ -81,7 +85,7 @@ class AsyncDatabaseService:
         try:
             db_item = await self.get_by_id(model, id)
             if db_item:
-                self.db.delete(db_item)
+                await self.db.delete(db_item)
                 await self.db.commit()
                 return True
             return False
@@ -91,7 +95,7 @@ class AsyncDatabaseService:
 
     async def add_relation(self, parent_model: Type[T], parent_id: int, relation_name: str, child_model: Type[T], child_ids: List[int]) -> None:
         try:
-            parent_item = await self.get_by_id(parent_model, parent_id)
+            parent_item = await self.get_by_id(parent_model, parent_id, options=[selectinload(getattr(parent_model, relation_name))])
             if not parent_item:
                 raise ValueError(f"Parent item with id {parent_id} not found")
 
@@ -106,7 +110,7 @@ class AsyncDatabaseService:
 
     async def remove_relation(self, parent_model: Type[T], parent_id: int, relation_name: str, child_model: Type[T], child_ids: List[int]) -> None:
         try:
-            parent_item = await self.get_by_id(parent_model, parent_id)
+            parent_item = await self.get_by_id(parent_model, parent_id, options=[selectinload(getattr(parent_model, relation_name))])
             if not parent_item:
                 raise ValueError(f"Parent item with id {parent_id} not found")
 

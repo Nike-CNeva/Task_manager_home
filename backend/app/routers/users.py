@@ -51,11 +51,6 @@ async def create_user_form(current_user: User = Depends(get_current_user)):
         "workshops": workshops
     })
 
-@router.get("/admin/workshops", response_model=List[str])
-async def get_workshops(current_user: User = Depends(get_current_user)):
-    if current_user.user_type != UserTypeEnum.ADMIN:
-        raise HTTPException(status_code=403, detail="Доступ запрещён")
-    return [workshop.value for workshop in WorkshopEnum]
 
 @router.post("/admin/users/save")
 async def save_user(
@@ -144,7 +139,23 @@ async def edit_user_form(
         "user_workshops": [w.name for w in user_obj.workshops]
     })
 
+@router.delete("/admin/users/{user_id}/delete")
+async def delete_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.user_type != UserTypeEnum.ADMIN:
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
 
+    try:
+        deleted = await user_service.delete_user_by_id(db=db, user_id=user_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при удалении пользователя: {str(e)}")
+
+    return JSONResponse(content={"message": "Пользователь удалён"})
 
 @router.get("/profile")
 async def get_profile(current_user: User = Depends(get_current_user)):

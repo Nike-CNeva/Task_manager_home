@@ -8,7 +8,7 @@ __pycache__/
 .venv/
 venv/
 *.sqlite3
-
+docker-compose.yml
 # === IDE ===
 .vscode/
 .idea/

@@ -73,7 +73,7 @@ async def get_files_for_bid(db: AsyncSession, bid_id: int) -> Sequence[Files]:
     result = await db.execute(stmt)
     return result.scalars().all()
 
-async def delete_files(file_id: int, db: AsyncSession):
+async def delete_files(file_id: int, db: AsyncSession) -> str:
     """Асинхронно удаляет файл и запись в базе данных."""
     db_service = AsyncDatabaseService(db)
     file = await db_service.get_by_id(Files, file_id)
@@ -89,3 +89,4 @@ async def delete_files(file_id: int, db: AsyncSession):
         raise HTTPException(status_code=500, detail="Ошибка при удалении файла")
     
     await db_service.delete(Files, file_id)
+    return "Файл успешно удалён"

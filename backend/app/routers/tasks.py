@@ -5,12 +5,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.dependencies import get_current_user, get_db
 from backend.app.models.bid import Customer
-from backend.app.models.enums import ManagerEnum, StatusEnum
+from backend.app.models.enums import ManagerEnum, StatusEnum, UrgencyEnum, UserTypeEnum, WorkshopEnum
 from backend.app.models.user import User
+from backend.app.models.workshop import Workshop
 from backend.app.schemas.bid import BidCreateResponse
 from backend.app.schemas.customer import CustomerCreateRequest, CustomerRead
 from backend.app.schemas.product import ProductResponse
 from backend.app.schemas.task import TaskRead
+from backend.app.schemas.user import EmployeeOut
+from backend.app.schemas.workshop import WorkshopRead
 from backend.app.services import task_service, product_service, material_service
 import json
 import logging
@@ -79,6 +82,10 @@ async def get_managers():
 async def get_status():
     return [status.value for status in StatusEnum]
 
+@router.get("/urgency/", response_model=List[str])
+async def get_urgency():
+    return [urgency.value for urgency in UrgencyEnum]
+
 @router.post("/customers/", response_model=dict)
 async def add_customer(payload: CustomerCreateRequest, db: AsyncSession = Depends(get_db)):
     customer = Customer(name=payload.name)
@@ -86,6 +93,12 @@ async def add_customer(payload: CustomerCreateRequest, db: AsyncSession = Depend
     await db.commit()
     await db.refresh(customer)
     return JSONResponse(content=customer, status_code=status.HTTP_201_CREATED)
+
+@router.get("/employee/", response_model=List[EmployeeOut])
+async def get_employees(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User))
+    employees = result.scalars().all()
+    return employees
 
 @router.get("/products/", response_model=List[ProductResponse])
 async def get_products(product_service: product_service.ProductService = Depends(product_service.get_product_service)):
@@ -95,13 +108,19 @@ async def get_products(product_service: product_service.ProductService = Depends
 
 @router.get("/products/{product_id}/fields", response_model=List[Dict[str, Any]])
 async def get_product_fields(product_id: str, product_service: product_service.ProductService = Depends(product_service.get_product_service)):
-    return product_service.get_product_fields(product_id)
+    return await product_service.get_product_fields(product_id)
 
 @router.get("/material/forms/{product_id}", response_model=List[Dict[str, Any]])
 async def get_material_forms(product_id: str, material_service: material_service.MaterialService = Depends(material_service.get_material_service)):
-    return material_service.get_material_forms(product_id)
+    return await material_service.get_material_forms(product_id)
 
 
 @router.get("/material/types/{product_id}/{form}", response_model=List[Dict[str, Any]])
 async def get_material_types(product_id: str, form: str = Path(...), material_service: material_service.MaterialService = Depends(material_service.get_material_service)):
-    return material_service.get_material_types(product_id, form)
+    return await material_service.get_material_types(product_id, form)
+
+@router.get("/workshops/", response_model=List[WorkshopRead])
+async def get_workshops(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Workshop))
+    workshops = result.scalars().all()
+    return workshops

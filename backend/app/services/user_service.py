@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, Sequence
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from backend.app.middlewares.auth_middleware import get_password_hash
@@ -14,9 +15,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
-    """Получает пользователя по ID."""
     db_service = AsyncDatabaseService(db)
-    user = await db_service.get_by_id(User, user_id)  # нужно ожидать асинхронный запрос
+    user = await db_service.get_by_id(
+        User,
+        user_id,
+        options=[selectinload(User.tasks),
+                 selectinload(User.workshops),
+                 selectinload(User.comments)]
+    )
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
     return user
@@ -41,10 +47,10 @@ async def create_user(db: AsyncSession, user_data: UserSaveForm, workshop_ids: L
     """Создает нового пользователя."""
     db_service = AsyncDatabaseService(db)
 
-    # Проверка, существует ли пользователь с таким именем
+    # Проверка, существует ли пользователь с таким логином
     user = await get_user_by_username(db, user_data.username)  # нужно ожидать асинхронный запрос
     if user:
-        raise HTTPException(status_code=400, detail="Пользователь с таким именем уже существует")
+        raise HTTPException(status_code=400, detail="Пользователь с таким логином уже существует")
 
     # Хешируем пароль
     hashed_password = await get_password_hash(user_data.password)
@@ -65,8 +71,11 @@ async def create_user(db: AsyncSession, user_data: UserSaveForm, workshop_ids: L
 
     # Привязка к цехам
     if workshop_ids:
-        workshops = await db.execute(Workshop.__table__.select().filter(Workshop.id.in_(workshop_ids)))  # асинхронный запрос
-        workshops = workshops.scalars().all()
+        result = await db.execute(
+            select(Workshop).where(Workshop.id.in_(workshop_ids))
+        )
+        workshops = result.scalars().all()
+
         if len(workshops) != len(workshop_ids):
             raise HTTPException(status_code=400, detail="Один или несколько цехов не найдены")
 
@@ -83,7 +92,6 @@ async def update_user(db: AsyncSession, form_data: UserSaveForm, workshop_ids: l
     user = await get_user_by_id(db, form_data.id)  # нужно ожидать асинхронный запрос
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
-
 
     user_type_enum = form_data.user_type
 
@@ -138,3 +146,7 @@ async def update_user_workshops(db: AsyncSession, user_id: int, new_workshop_ids
 async def get_user_workshop(user: User) -> set[str]:
     """Определяет список цехов, к которым относится пользователь."""
     return {workshop.name for workshop in user.workshops}
+
+async def delete_user_by_id(db: AsyncSession, user_id: int) -> bool:
+    user_service = AsyncDatabaseService(db)  
+    return await user_service.delete(User, user_id)

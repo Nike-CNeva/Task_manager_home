@@ -4,7 +4,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from backend.app.database.database import AsyncSessionLocal
 from backend.app.database.database_service import AsyncDatabaseService
-from backend.app.models.enums import WorkshopEnum
+from backend.app.models.enums import ProductTypeEnum, WorkshopEnum
+from backend.app.models.product import Product
 from backend.app.models.workshop import Workshop
 from backend.app.routers import users, tasks, files, comments, auth, home
 from backend.app.core.settings import settings
@@ -15,20 +16,21 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    async with AsyncSessionLocal() as session:
-        db_service = AsyncDatabaseService(session)
-        await db_service.ensure_enum_seeded(Workshop, WorkshopEnum)
-    yield
-    await session.close()
+#@asynccontextmanager
+#async def lifespan(app: FastAPI):
+#    async with AsyncSessionLocal() as session:
+#        db_service = AsyncDatabaseService(session)
+#        await db_service.ensure_enum_seeded(Workshop, WorkshopEnum)
+#        await db_service.ensure_enum_seeded(Product, ProductTypeEnum, enum_field="type")
+#    yield
+#    await session.close()
 
 app = FastAPI(
     title="Система управления задачами для производства",
     description="API для управления задачами, пользователями, файлами и комментариями в производственной системе.",
     version="1.0",
     debug=settings.DEBUG,
-    lifespan=lifespan
+#    lifespan=lifespan
 )
 app.add_middleware(
     CORSMiddleware,

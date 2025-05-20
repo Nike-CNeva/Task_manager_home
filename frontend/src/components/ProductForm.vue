@@ -1,7 +1,7 @@
 <template>
     <div class="product-container">
       <!-- Выбор изделия -->
-      <select v-model="productData.product_id" @change="handleProductChange">
+      <select v-model="productData.product_name" @change="handleProductChange">
         <option value="">Выберите изделие</option>
         <option v-for="product in productOptions" :key="product.value" :value="product.value">
           {{ product.label }}
@@ -10,11 +10,13 @@
   
       <!-- Поля изделия -->
       <div v-if="productFields.length" class="product-fields">
-        <div v-for="field in productFields" :key="field.name">
+        <div class="field-wrapper" v-for="field in productFields" :key="field.name">
           <template v-if="field.type === 'select'">
-            <select :name="field.name" v-model="productData.product_details[field.name]" @change="handleSpecialField(field.name)">
+            <select v-model="productData.product_details[field.name]" :name="field.name" @change="handleSpecialField(field.name)">
               <option value="">{{ field.label }}</option>
-              <option v-for="opt in field.options" :key="opt.name" :value="opt.value">{{ opt.label }}</option>
+              <option v-for="opt in field.options" :key="opt.name" :value="opt.value">
+                {{ opt.value }}
+              </option>
             </select>
           </template>
   
@@ -29,10 +31,7 @@
             <input :type="field.type" :name="field.name" :placeholder="field.label" v-model="productData.product_details[field.name]" />
           </template>
         </div>
-  
-        <!-- Нестандартный профиль -->
-        <input v-if="productData.product_details.profile_type_id === '11'" type="text" placeholder="Введите тип профиля"
-               v-model="productData.product_details.custom_profile_type" />
+
         <!-- Нестандартная кассета -->
         <input v-if="productData.product_details.cassette_type_id === 'OTHER'" type="text" placeholder="Описание кассеты"
                v-model="productData.product_details.custom_cassette_type" />
@@ -100,7 +99,7 @@ import api from '@/utils/axios'; // твой axios-инстанс
 const emits = defineEmits(['update', 'remove']);
 
 const productData = reactive({
-  product_id: '',
+  product_name: '',
   material: '',
   material_type: '',
   thickness: '',
@@ -134,7 +133,10 @@ onMounted(async () => {
       api.get('/workshops/'),
       api.get('/employee/'),
     ]);
-    productOptions.value = productsRes.data;
+    productOptions.value = productsRes.data.map(p => ({
+      value: p.id,
+      label: p.type
+    }));
     urgencies.value = urgenciesRes.data;
     allWorkshops.value = workshopsRes.data;
     allEmployees.value = employeesRes.data;
@@ -160,14 +162,23 @@ watch(
 
 async function handleProductChange() {
   try {
-    const pid = productData.product_id;
+    const pid = productData.product_name;
     const [fieldsRes, formsRes] = await Promise.all([
       api.get(`/products/${pid}/fields`),
       api.get(`/material/forms/${pid}`),
     ]);
     productFields.value = fieldsRes.data;
     materialForms.value = formsRes.data;
-
+    fieldsRes.data.forEach(field => {
+      if (field.type === 'select' && field.options.length) {
+        // Если нужно сразу устанавливать первый вариант
+        productData.product_details[field.name] = '';
+      } else if (field.type === 'checkbox') {
+        productData.product_details[field.name] = false;
+      } else {
+        productData.product_details[field.name] = '';
+      }
+    });
     if (['CASSETTE', 'SHEET'].includes(pid)) {
       showSheets.value = true;
     } else {
@@ -187,7 +198,7 @@ function handleSpecialField(name) {
 
 async function loadMaterialTypes() {
   try {
-    const pid = productData.product_id;
+    const pid = productData.product_name;
     const form = productData.material;
     const res = await api.get(`/material/types/${pid}/${form}`);
     materialTypes.value = res.data;
@@ -226,5 +237,18 @@ function removeSheet() {
     margin-bottom: 15px;
     border-radius: 10px;
   }
+  .product-fields {
+  display: flex;
+  flex-wrap: wrap; /* чтобы переносилось, если не помещается */
+  gap: 10px;
+  margin-top: 10px;
+  align-items: flex-end;
+}
+
+.field-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px; /* можно изменить ширину по вкусу */
+}
   </style>
   

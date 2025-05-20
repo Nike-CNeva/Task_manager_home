@@ -20,13 +20,10 @@ class UserBase(BaseModel):
 class UserRead(UserBase):
     id: int = Field(..., description="ID пользователя")
 
-class UserCreate(UserBase):
-    password: str = Field(..., description="Пароль пользователя")
-
-class UserSaveForm(UserCreate):
+class UserSaveForm(UserBase):
     id: Optional[int] = Field(None, description="ID пользователя")
-    workshops: List[WorkshopEnum] = Field(..., description="Список цехов")
-
+    workshops: List[WorkshopEnum] = Field(default_factory=list, description="Список цехов")
+    password: Optional[str] = Field(None, description="Пароль (только при создании)")
 
 class PasswordChangeRequest(BaseModel):
     current_password: str
@@ -36,3 +33,10 @@ class PasswordChangeRequest(BaseModel):
 
 class UserWithWorkshops(UserRead):
     workshops: List[str]
+
+
+class EmployeeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+    id: int
+    name: str
+    firstname: Optional[str]
