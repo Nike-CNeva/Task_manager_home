@@ -3,7 +3,7 @@ import axios from 'axios';
 import store from '@/store';
 // Создание экземпляра axios с базовыми настройками
 const api = axios.create({
-  baseURL: process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
     'Content-Type': 'application/json', // Стандартный заголовок
   }

@@ -8,7 +8,7 @@ __pycache__/
 .venv/
 venv/
 *.sqlite3
-
+docker-compose.yml
 # === IDE ===
 .vscode/
 .idea/
@@ -56,3 +56,4 @@ docker-compose.override.yml
 
 # === Firebase (если временно используешь) ===
 firebase-debug.log
+node_modules

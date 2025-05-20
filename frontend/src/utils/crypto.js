@@ -1,6 +1,6 @@
 import CryptoJS from 'crypto-js';
 
-const SECRET_KEY = process.env.VUE_APP_SECRET_KEY;
+const SECRET_KEY = import.meta.env.VITE_API_SECRET_KEY;
 
 export function encryptToken(token) {
   return CryptoJS.AES.encrypt(token, SECRET_KEY).toString();

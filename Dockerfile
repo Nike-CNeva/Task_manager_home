@@ -3,7 +3,7 @@ FROM node:20 AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/ ./
 
-# Добавим переменные окружения во время сборки
+# Добавим переменные окружения во время сборки для продакшн
 ARG VUE_APP_SECRET_KEY
 ENV VUE_APP_SECRET_KEY=$VUE_APP_SECRET_KEY
 
@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 # Копируем backend-код
 COPY backend/ ./backend/
 
-# Копируем сборку фронта в статическую папку
+# Копируем сборку фронта в статическую папку для продакшн
 COPY --from=frontend-builder /app/frontend/dist ./backend/app/static
 
 ENV PYTHONPATH=/app/backend

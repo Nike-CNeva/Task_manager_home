@@ -115,11 +115,16 @@ const handleSubmit = async () => {
     if (!token) {
       throw new Error('Токен не найден! Пожалуйста, войдите в систему.')
     }
-
-    await api.post('/profile', form)
+    // Преобразуем пустые строки в null
+    for (const key in form) {
+      if (typeof form[key] === 'string' && form[key].trim() === '') {
+        form[key] = null
+      }
+    }
+    await api.put('/profile', form)
 
     alert('Данные успешно сохранены!')
-    router.push('/home')
+    router.push('/')
   } catch (e) {
     alert(`Ошибка: ${e.message}`)
   }

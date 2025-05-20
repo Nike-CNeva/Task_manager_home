@@ -39,7 +39,7 @@
   
   <script>
   import api from '@/utils/axios';
-  
+
   export default {
     name: "ChangePassword",
     data() {
@@ -70,7 +70,7 @@
         }
   
         try {
-          await api.post('/profile/password', this.form);
+          await api.put('/profile/password', this.form);
   
           this.success = "Пароль успешно изменён.";
           this.form.current_password = "";
