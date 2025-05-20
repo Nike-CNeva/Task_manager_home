@@ -4,8 +4,8 @@ WORKDIR /app/frontend
 COPY frontend/ ./
 
 # Добавим переменные окружения во время сборки для продакшн
-ARG VUE_APP_SECRET_KEY
-ENV VUE_APP_SECRET_KEY=$VUE_APP_SECRET_KEY
+ARG VITE_API_SECRET_KEY
+ENV VITE_API_SECRET_KEY=$VITE_API_SECRET_KEY
 
 RUN npm install && npm run build
 
@@ -26,4 +26,4 @@ COPY --from=frontend-builder /app/frontend/dist ./backend/app/static
 
 ENV PYTHONPATH=/app/backend
 
-CMD ["uvicorn", "backend.app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
