@@ -17,6 +17,6 @@ class User(Base):
     user_type: Mapped[UserTypeEnum] = mapped_column(SQLEnum(UserTypeEnum), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     # Связь Many-to-Many с Task (Ответственные)
-    tasks = relationship("Task", secondary=task_responsible_association, back_populates="responsible_users")
+    tasks = relationship("Task", secondary=task_responsible_association, back_populates="responsible_users", lazy="selectin")
     workshops = relationship("Workshop", secondary=user_workshop_association, back_populates="users")
     comments = relationship("Comment", back_populates="user")

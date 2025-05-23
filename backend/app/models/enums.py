@@ -54,7 +54,7 @@ class KlamerTypeEnum(str, Enum):
     ANGULAR = "Угловой"
 
 class CassetteTypeEnum(str, Enum):
-    KZT_STD = "Зактрытого типа(стандарт)"
+    KZT_STD = "Закрытого типа(стандарт)"
     KOT_STD = "Открытого типа(стандарт)"
     KOTVO = "Открытого типа, отв. в вертикальных рустах"
     KZT = "Закрытого типа"

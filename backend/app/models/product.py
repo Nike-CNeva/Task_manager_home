@@ -8,7 +8,7 @@ class Product(Base):
     __tablename__ = "product"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     type: Mapped[ProductTypeEnum] = mapped_column(SQLEnum(ProductTypeEnum), nullable=False)
-    tasks = relationship("Task", back_populates="product", uselist=False)
+    tasks = relationship("Task", back_populates="product")
     profile = relationship("Profile", back_populates="product", cascade="all, delete-orphan")
     klamer = relationship("Klamer", back_populates="product", cascade="all, delete-orphan")
     bracket = relationship("Bracket", back_populates="product", cascade="all, delete-orphan")
@@ -40,7 +40,6 @@ class Bracket(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
     width: Mapped[int] = mapped_column(nullable=False)
     length: Mapped[str] = mapped_column(nullable=False)
-    thickness: Mapped[int] = mapped_column(nullable=False)
     product = relationship("Product", back_populates="bracket")
 
 # Extension Bracket Table

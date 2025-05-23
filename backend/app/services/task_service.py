@@ -1,22 +1,25 @@
+import datetime
 from typing import List, Dict, Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
 from backend.app.models.bid import Bid, Customer
-from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum
+from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum
 from backend.app.models.files import Files
 from backend.app.models.material import Material, Sheets
-from backend.app.models.product import Product
+from backend.app.models.product import Bracket, Cassette, ExtensionBracket, Klamer, LinearPanel, Product, Profile
 from backend.app.models.task import Task, TaskWorkshop
 from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
-from backend.app.schemas.bid import BidCreateResponse
+from backend.app.models.comment import Comment
+from backend.app.schemas.bid import BidCreate
 from backend.app.schemas.task import TaskRead
+from backend.app.schemas.user import UserRead
+from backend.app.services.file_service import save_file
 from backend.app.services.user_service import get_user_workshop
 from backend.app.database.database_service import AsyncDatabaseService
-from backend.app.core.settings import settings
 import logging
-from backend.app.services import file_service
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -46,119 +49,169 @@ async def get_task_by_id(task_id: int, db: AsyncSession) -> TaskRead:
     return TaskRead.model_validate(task)
 
 
-async def create_bid_with_tasks(
-    bid_info: BidCreateResponse, files: List[UploadFile], db: AsyncSession) -> Dict[str, Any]:
-    """
-    Создает заявку и связанные с ней задачи.
-    """
-    db_service = AsyncDatabaseService(db)
+async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[UploadFile], db: AsyncSession):
+    try:
+        all_user_ids = set()
+        for product_data in bid_info.products:
+            if product_data.employees:
+                all_user_ids.update(product_data.employees)
 
-    # Проверяем, существует ли заказчик
-    customer = await db_service.get_by_id(Customer, bid_info.customer_id)
-    if not customer:
-        raise HTTPException(status_code=404, detail="Заказчик не найден")
+        # Загружаем из базы всех нужных пользователей одним запросом
+        result = await db.execute(select(User).where(User.id.in_(all_user_ids)))
+        all_users = {user.id: user for user in result.scalars()}
 
-    # Создаем заявку
-    bid_data:Dict[str, Any] = {
-        "customer_id": bid_info.customer_id,
-        "manager": bid_info.manager,
-    }
-    bid = await db_service.create(Bid, bid_data)
+        # 1. Создаем заявку
+        new_bid = Bid(
+            task_number=bid_info.task_number,
+            customer_id=bid_info.customer,
+            manager=bid_info.manager,
+        )
+        db.add(new_bid)
+        await db.flush()  # получаем new_bid.id
 
-    # Создаем задачи для заявки
-    for task_info in bid_info.tasks:
-        # Проверяем, существует ли продукт
-        product = await db_service.get_by_field(Product, "type", task_info.product_name)
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Продукт {task_info.product_name} не найден")
+        # 2. Комментарии
+        if bid_info.comment:
+            new_comment = Comment(
+                bid_id=new_bid.id,
+                user_id=user.id,
+                comment=bid_info.comment,
+                created_at=datetime.datetime.utcnow(),
+            )
+            db.add(new_comment)
 
-        # Проверяем, существует ли материал
-        material = await db_service.get_by_field(Material, "type_id", task_info.material_type)
-        if not material:
-            raise HTTPException(status_code=404, detail=f"Материал {task_info.material_type} не найден")
+        for product_data in bid_info.products:
+            new_product = Product(
+                type=product_data.product_name,
+            )
+            db.add(new_product)
+            await db.flush()
+
+            # 3. Продукты
+            if product_data.product_name == ProductTypeEnum.PROFILE.value:
+                new_profile = Profile(
+                    product_id = new_product.id,
+                    profile_type=product_data.product_details["profile_type"],
+                    length = product_data.product_details["length"],
+                )
+                db.add(new_profile)
+            elif product_data.product_name == ProductTypeEnum.KLAMER.value:
+                new_klamer = Klamer(
+                    product_id = new_product.id,
+                    klamer_type=product_data.product_details["klamer_type"],
+                )
+                db.add(new_klamer)
+            elif product_data.product_name == ProductTypeEnum.BRACKET.value:
+                new_bracket = Bracket(
+                    product_id = new_product.id,
+                    width = product_data.product_details["width"],
+                    length = product_data.product_details["length"],
+                )
+                db.add(new_bracket)
+            elif product_data.product_name == ProductTypeEnum.EXTENSION_BRACKET.value:
+                new_extension_bracket = ExtensionBracket(
+                    product_id = new_product.id,
+                    width = product_data.product_details["width"],
+                    length = product_data.product_details["length"],
+                    heel = product_data.product_details["heel"],
+                )
+                db.add(new_extension_bracket)
+            elif product_data.product_name == ProductTypeEnum.CASSETTE.value:
+                new_kassete = Cassette(
+                    product_id = new_product.id,
+                    kassete_type=product_data.product_details["kassete_type"],
+                    description=product_data.product_details["description"],
+                )
+                db.add(new_kassete)
+            elif product_data.product_name == ProductTypeEnum.LINEAR_PANEL.value:
+                new_linear_panel = LinearPanel(
+                    product_id = new_product.id,
+                    field = product_data.product_details["field"],
+                    rust = product_data.product_details["rust"],
+                    length = product_data.product_details["length"],
+                    butt_end=product_data.product_details["butt_end"],
+                )
+                db.add(new_linear_panel)
+
+            # 4. Material
+            new_material = Material(
+                form=product_data.material_form,
+                type=product_data.material_type,
+                thickness=product_data.material_thickness,
+                painting=product_data.painting,
+                color=product_data.color,
+            )
+            db.add(new_material)
+            await db.flush()
+
+            # 5. Task
+            new_task = Task(
+                bid_id=new_bid.id,
+                product_id=new_product.id,
+                material_id=new_material.id,
+                quantity=product_data.product_details["quantity"],
+                urgency=product_data.urgency,
+                status=StatusEnum("Новая"),
+                created_at=datetime.datetime.utcnow(),
+            )
+            db.add(new_task)
+            await db.flush()
+
+            for sheet in product_data.sheets or []:
+                new_sheet = Sheets(
+                    task_id=new_task.id,
+                    width=sheet["width"],
+                    length=sheet["length"],
+                    quantity=sheet["quantity"],
+                )
+                db.add(new_sheet)
+
+                workshop_names = product_data.workshops or []  # уже строки
+
+                result = await db.execute(
+                    select(Workshop).where(Workshop.name.in_(workshop_names))
+                )
+                workshops = result.scalars().all()
+
+                # Создаем словарь по строковому имени цеха (т.к. Workshop.name — Enum, но хранится как строка)
+                workshops_dict = {w.name.value: w.id for w in workshops}
+
+                for ws_name in workshop_names:
+                    ws_id = workshops_dict.get(ws_name)
+                    if ws_id:
+                        new_task_workshop = TaskWorkshop(
+                            task_id=new_task.id,
+                            workshop_id=ws_id,
+                            status=StatusEnum("Новая"),
+                        )
+                        db.add(new_task_workshop)
+                    else:
+                        print(f"Workshop not found for {ws_name}")
+            await db.flush()
+            # 7. Employees
+            await db.refresh(new_task, attribute_names=["responsible_users"])
+            for user_id in product_data.employees or []:
+                user: User | None = all_users.get(user_id)
+                if user:
+                    stmt = task_responsible_association.insert().values(task_id=new_task.id, user_id=user.id)
+                    await db.execute(stmt)
+                    await db.flush()
 
 
-    # Сохраняем файлы, если они есть
-    if files:
+        # 8. Files
         for file in files:
-            await file_service.save_file(bid.id, file, db)
+            await save_file(new_bid.id, file, db)
 
-    return {"bid_id": bid.id, "message": "Заявка и задачи успешно созданы"}
+        await db.commit()
+        await db.refresh(new_bid)
+        return new_bid
 
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка при создании заявки: {str(e)}")
 
-async def create_task(
-    db: AsyncSession,
-    bid_id: int,
-    product_id: int,
-    material_id: int,
-    quantity: int,
-    urgency: str,
-    status: str,
-    waste: str,
-    weight: str,
-    responsible_user_ids: List[int],
-    workshop_ids: List[int],
-    file_names: List[str],
-    sheet_data: List[Dict[str, Any]],
-) -> Task:
-    """Создает новую задачу."""
-    db_service = AsyncDatabaseService(db)
-    # Проверяем существование связанных данных
-    bid = await db_service.get_by_id(Bid, bid_id)
-    product = await db_service.get_by_id(Product, product_id)
-    material = await db_service.get_by_id(Material, material_id)
-
-    if not bid or not product or not material:
-        raise HTTPException(
-            status_code=400,
-            detail="Некоторые из данных (Bid, Product, или Material) не существуют в базе.",
-        )
-
-    # Создаем объект задачи
-    new_task_data:Dict[str, Any] = {
-        "bid_id": bid_id,
-        "product_id": product_id,
-        "material_id": material_id,
-        "quantity": quantity,
-        "urgency_id": UrgencyEnum[urgency],
-        "status_id": StatusEnum[status],
-        "waste": waste,
-        "weight": weight,
-    }
-    new_task = await db_service.create(Task, new_task_data)
-
-    # Добавляем связь с ответственными пользователями
-    if responsible_user_ids:
-        await db_service.add_relation(
-            Task, new_task.id, "responsible_users", User, responsible_user_ids
-        )
-
-    # Добавляем связь с мастерскими
-    if workshop_ids:
-        await db_service.add_relation(
-            Task, new_task.id, "workshops", Workshop, workshop_ids
-        )
-
-    # Сохраняем файлы для задачи
-    for file_name in file_names:
-        new_file_data:Dict[str, Any] = {
-            "task_id": new_task.id,
-            "file_name": file_name,
-            "file_path": str(settings.UPLOAD_DIR / str(new_task.id) / file_name),
-        }
-        await db_service.create(Files, new_file_data)
-
-    # Сохраняем данные для Sheets (при необходимости)
-    for sheet in sheet_data:
-        new_sheet_data:Dict[str, Any] = {
-            "task_id": new_task.id,
-            "width_sheet": sheet["width_id"],
-            "length_sheet": sheet["length_id"],
-            "quantity": sheet["quantity"],
-        }
-        await db_service.create(Sheets, new_sheet_data)
-
-    return new_task
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Непредвиденная ошибка: {str(e)}")
 
 
 async def get_products(db: AsyncSession) -> List[Dict[str, Any]]:
@@ -175,3 +228,17 @@ async def get_types(db: AsyncSession) -> tuple[List[str], List[str], List[str], 
     klamer_types = [klamer_types.value for klamer_types in KlamerTypeEnum]
     kassete_types = [kassete_types.value for kassete_types in CassetteTypeEnum]
     return managers, profile_values, klamer_types, kassete_types
+
+async def create_new_customer_async(db, customer_name: str) -> Customer:
+    query = select(Customer).where(Customer.name == customer_name)
+    result = await db.execute(query)
+    existing_customer = result.scalar_one_or_none()
+
+    if existing_customer:
+        return existing_customer
+    else:
+        new_customer = Customer(name=customer_name)
+        db.add(new_customer)
+        await db.commit()
+        await db.refresh(new_customer)
+        return new_customer

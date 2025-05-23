@@ -1,3 +1,4 @@
+from cProfile import label
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.models.enums import ProductTypeEnum
@@ -13,6 +14,6 @@ class ProductRead(ProductBase):
     id: int = Field(..., description="ID продукта")
 
 class ProductResponse(BaseModel):
-    id: int = Field(..., description="ID продукта")
-    type: ProductTypeEnum = Field(..., description="Тип продукта")
+    value: int = Field(..., description="ID продукта")
+    label: ProductTypeEnum = Field(..., description="Тип продукта")
  

@@ -1,7 +1,7 @@
-from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, Field
-
-from backend.app.schemas.task import TaskCreateResponse, TaskRead
+from typing import List, Literal, Optional, Union
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from backend.app.models.enums import ManagerEnum
+from backend.app.schemas.task import TaskCreate, TaskRead
 
 
 class BidBase(BaseModel):
@@ -14,15 +14,28 @@ class BidBase(BaseModel):
 class BidRead(BidBase):
     id: int = Field(..., description="ID заявки")
 
+
 class BidWithTasks(BidRead):
     tasks: List[TaskRead] = Field(default_factory=list, description="Список задач в заявке")
 
-class BidCreateResponse(BaseModel):
+class BidCreate(BaseModel):
     """
     Схема для создания заявки.
     """
-    customer_id: int = Field(..., description="ID заказчика")
-    manager: str = Field(..., description="Менеджер")
-    status: str = Field(..., description="Статус")
+    task_number: Optional[int] = Field(None, description="Номер заявки")
+    customer: Union[int, Literal["new"]] = Field(..., description="ID заказчика или 'new'")
+    new_customer: str | None = Field(default=None, description="Название нового заказчика")
+    manager: ManagerEnum = Field(..., description="Менеджер")
     comment: Optional[str] = Field(None, description="Комментарий к заявке")
-    tasks: List[TaskCreateResponse] = Field(..., description="Список задач")
+    products: List[TaskCreate] = Field(..., description="Список задач")
+
+
+    @model_validator(mode="after")
+    def check_customer_fields(self) -> 'BidCreate':
+        if self.customer == "new":
+            if not self.new_customer:
+                raise ValueError("Поле 'newcustomer' обязательно, если customer == 'new'")
+        else:
+            if self.new_customer:
+                raise ValueError("Поле 'newcustomer' должно быть пустым, если указан существующий customer")
+        return self

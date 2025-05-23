@@ -25,10 +25,10 @@ class Task(Base):
     product = relationship("Product", back_populates="tasks", cascade="all, delete-orphan", single_parent=True)
     material = relationship("Material", back_populates="tasks", cascade="all, delete-orphan", single_parent=True)
     # One-to-Many связь с Comment
-    comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
+
     workshops = relationship("TaskWorkshop", back_populates="task", cascade="all, delete-orphan")
     # Many-to-Many связи
-    responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks")
+    responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks", lazy="selectin")
 
 # TaskWorkshop Table
 class TaskWorkshop(Base):
