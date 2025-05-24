@@ -7,8 +7,9 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json', // Стандартный заголовок
   }
+  
 });
-
+console.log('💡 API Base URL =', import.meta.env.VITE_API_URL);
 // Добавление интерсептора для добавления токена в заголовки
 api.interceptors.request.use(config => {
   const token = store.getters.getToken;
