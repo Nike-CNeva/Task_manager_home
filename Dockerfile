@@ -4,8 +4,8 @@ WORKDIR /app/frontend
 COPY frontend/ ./
 
 # Добавим переменные окружения во время сборки для продакшн
-#ARG VITE_API_SECRET_KEY
-#ENV VITE_API_SECRET_KEY=$VITE_API_SECRET_KEY
+ARG VITE_API_SECRET_KEY
+ENV VITE_API_SECRET_KEY=$VITE_API_SECRET_KEY
 
 RUN npm install && npm run build
 
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 COPY backend/ ./backend/
 
 # Копируем сборку фронта в статическую папку для продакшн
-#COPY --from=frontend-builder /app/frontend/dist ./backend/app/static
+COPY --from=frontend-builder /app/frontend/dist ./backend/app/static
 
 ENV PYTHONPATH=/app/backend
 
