@@ -5,7 +5,9 @@ COPY frontend/ ./
 
 # Добавим переменные окружения во время сборки для продакшн
 ARG VITE_API_SECRET_KEY
+ARG VITE_API_URL
 ENV VITE_API_SECRET_KEY=$VITE_API_SECRET_KEY
+ENV VITE_API_URL=$VITE_API_URL
 
 RUN npm install && npm run build
 
