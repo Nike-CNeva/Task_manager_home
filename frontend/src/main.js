@@ -9,7 +9,8 @@ import UserForm from './components/UserForm.vue';
 import ChangePassword from './components/ChangePassword.vue';
 import CreateBid from './components/CreateBid.vue';
 import store from './store'; // Vuex
-
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap'; // <-- Это важно!
 
 // Маршруты
 const routes = [
