@@ -14,8 +14,6 @@ const routes = [
   { path: '/tasks', component: TasksPage, meta: { requiresAuth: true } },
   { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
   { path: '/profile/password', component: ChangePassword, meta: { requiresAuth: true } },
-  { path: '/tasks/new', component: NewTaskPage, meta: { requiresAuth: true } },
-  { path: '/workshops', component: WorkshopsPage, meta: { requiresAuth: true } },
   { path: '/admin/users', name: 'UserManagement', component: UserManagement, meta: { requiresAuth: true } },
   { path: '/admin/users/create', name: 'UserCreate', component: UserForm, meta: { requiresAuth: true } },
   { path: '/admin/users/:id/edit', name: 'UserEdit', component: UserForm, props: true, meta: { requiresAuth: true } },
