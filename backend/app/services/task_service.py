@@ -192,9 +192,7 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
             for user_id in product_data.employees or []:
                 user: User | None = all_users.get(user_id)
                 if user:
-                    stmt = task_responsible_association.insert().values(task_id=new_task.id, user_id=user.id)
-                    await db.execute(stmt)
-                    await db.flush()
+                    new_task.responsible_users.append(user)
 
 
         # 8. Files
