@@ -11,9 +11,9 @@ import CreateBid from '../components/CreateBid.vue';
 
 const routes = [
   { path: '/', name: 'HomePage', component: HomePage, meta: { requiresAuth: true } },
-  { path: '/tasks', component: TasksPage, meta: { requiresAuth: true } },
-  { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
-  { path: '/profile/password', component: ChangePassword, meta: { requiresAuth: true } },
+  { path: '/tasks', name: 'TasksPage', component: TasksPage, meta: { requiresAuth: true } },
+  { path: '/profile', name: 'ProfilePage', component: ProfilePage, meta: { requiresAuth: true } },
+  { path: '/profile/password', name: 'ChangePassword', component: ChangePassword, meta: { requiresAuth: true } },
   { path: '/admin/users', name: 'UserManagement', component: UserManagement, meta: { requiresAuth: true } },
   { path: '/admin/users/create', name: 'UserCreate', component: UserForm, meta: { requiresAuth: true } },
   { path: '/admin/users/:id/edit', name: 'UserEdit', component: UserForm, props: true, meta: { requiresAuth: true } },
@@ -22,16 +22,16 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(),
   routes,
 });
 router.beforeEach((to, from, next) => {
   if (!store.getters.isAuthChecked) {
     // Ждём, пока store не проверит токен
     const unwatch = store.watch(
-      (state) => state.authChecked,
-      (val) => {
-        if (val) {
+      (state, getters) => getters.isAuthChecked,
+      (authChecked) => {
+        if (authChecked) {
           unwatch();
           proceed();
         }
@@ -42,11 +42,14 @@ router.beforeEach((to, from, next) => {
   }
 
   function proceed() {
-    if (to.meta.requiresAuth && !store.getters.isAuthenticated) {
-      next({ name: 'Login' });
-    } else {
-      next();
+    const publicPages = ['/', '/login'];
+    const authRequired = !publicPages.includes(to.path);
+    const loggedIn = store.getters.isAuthenticated;
+
+    if (authRequired && !loggedIn) {
+      return next('/login');
     }
+    next();
   }
 });
 export default router;
