@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import store from './store';
 import HomePage from '../components/HomePage.vue';
 import TasksPage from '../components/TasksPage.vue';
 import LoginPage from '../components/LoginPage.vue';
@@ -25,31 +26,5 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 });
-router.beforeEach((to, from, next) => {
-  if (!store.getters.isAuthChecked) {
-    // Ждём, пока store не проверит токен
-    const unwatch = store.watch(
-      (state, getters) => getters.isAuthChecked,
-      (authChecked) => {
-        if (authChecked) {
-          unwatch();
-          proceed();
-        }
-      }
-    );
-  } else {
-    proceed();
-  }
 
-  function proceed() {
-    const publicPages = ['/', '/login'];
-    const authRequired = !publicPages.includes(to.path);
-    const loggedIn = store.getters.isAuthenticated;
-
-    if (authRequired && !loggedIn) {
-      return next('/login');
-    }
-    next();
-  }
-});
 export default router;

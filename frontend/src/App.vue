@@ -10,7 +10,6 @@
     <div v-else class="d-flex justify-content-center align-items-center" style="height: 100vh;">
       <span>Загрузка...</span>
     </div>
-    <p>authChecked: {{ authChecked }}</p>
     <AppFooter />
   </div>
 </template>
