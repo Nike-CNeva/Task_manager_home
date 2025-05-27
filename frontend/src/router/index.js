@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import store from './store';
 import HomePage from '../components/HomePage.vue';
 import TasksPage from '../components/TasksPage.vue';
 import LoginPage from '../components/LoginPage.vue';
