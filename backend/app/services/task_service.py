@@ -1,6 +1,9 @@
 import datetime
+from pprint import pprint
 from typing import List, Dict, Any
+from fastapi.background import P
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
 from backend.app.models.bid import Bid, Customer
@@ -13,7 +16,7 @@ from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
 from backend.app.models.comment import Comment
 from backend.app.schemas.bid import BidCreate
-from backend.app.schemas.task import TaskRead
+from backend.app.schemas.task import BidReadShort, CustomerShort, MaterialReadShort, ProductTRead, TaskRead, TaskWorkshopRead
 from backend.app.schemas.user import UserRead
 from backend.app.services.file_service import save_file
 from backend.app.services.user_service import get_user_workshop
@@ -23,21 +26,77 @@ from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
-async def get_tasks_list(user: User, db: AsyncSession) -> List[TaskRead]:
-    """Получает список задач, доступных пользователю."""
-    user_workshops = await get_user_workshop(user)
-
-    query = (
+async def get_tasks_list(current_user: User, db: AsyncSession) -> List[TaskRead]:
+    stmt = (
         select(Task)
-        .join(TaskWorkshop, Task.id == TaskWorkshop.task_id)
-        .join(Workshop, Workshop.id == TaskWorkshop.workshop_id)
-        .where(Workshop.name.in_(user_workshops))
+        .options(
+            selectinload(Task.bid).selectinload(Bid.customer),
+            selectinload(Task.product)
+                .selectinload(Product.profile),
+            selectinload(Task.product)
+                .selectinload(Product.klamer),
+            selectinload(Task.product)
+                .selectinload(Product.bracket),
+            selectinload(Task.product)
+                .selectinload(Product.extension_bracket),
+            selectinload(Task.product)
+                .selectinload(Product.cassette),
+            selectinload(Task.product)
+                .selectinload(Product.linear_panel),
+            selectinload(Task.material),
+            selectinload(Task.sheets),
+            selectinload(Task.workshops).selectinload(TaskWorkshop.workshop)
+        )
+        .order_by(Task.created_at.desc())
     )
 
-    result = await db.execute(query)
-    tasks = result.scalars().all()
+    result = await db.execute(stmt)
+    tasks = result.scalars().unique().all()
 
-    return [TaskRead.model_validate(task) for task in tasks]
+    task_reads = []
+
+    for task in tasks:
+        task_read = TaskRead(
+            id=task.id,
+            bid=BidReadShort(
+                id=task.bid.id,
+                task_number=task.bid.task_number,
+                manager=task.bid.manager,
+                customer=CustomerShort(
+                    id=task.bid.customer.id,
+                    name=task.bid.customer.name
+                )
+            ),
+            product=ProductTRead.model_validate(task.product, from_attributes=True),
+            material=MaterialReadShort.model_validate(task.material, from_attributes=True),
+            quantity=task.quantity,
+            urgency=task.urgency,
+            status=task.status,
+            waste=task.waste,
+            weight=task.weight,
+            sheets = [
+                {
+                    "id": s.id,
+                    "count": s.quantity,
+                    "width": s.width,
+                    "length": s.length
+                } 
+                for s in task.sheets
+            ] if task.sheets else [],
+            created_at=task.created_at,
+            completed_at=task.completed_at,
+            workshops=[
+                TaskWorkshopRead(
+                    id=tw.id,
+                    workshop_id=tw.workshop_id,
+                    status=tw.status
+                ) for tw in task.workshops
+            ]
+        )
+
+        task_reads.append(task_read)
+
+    return task_reads
 
 
 async def get_task_by_id(task_id: int, db: AsyncSession) -> TaskRead:
@@ -74,7 +133,7 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
             new_comment = Comment(
                 bid_id=new_bid.id,
                 user_id=user.id,
-                comment=bid_info.comment,
+                content=bid_info.comment,
                 created_at=datetime.datetime.utcnow(),
             )
             db.add(new_comment)
@@ -118,7 +177,7 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
             elif product_data.product_name == ProductTypeEnum.CASSETTE.value:
                 new_kassete = Cassette(
                     product_id = new_product.id,
-                    kassete_type=product_data.product_details["kassete_type"],
+                    cassette_type=product_data.product_details["cassette_type"],
                     description=product_data.product_details["description"],
                 )
                 db.add(new_kassete)
@@ -165,27 +224,27 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
                 )
                 db.add(new_sheet)
 
-                workshop_names = product_data.workshops or []  # уже строки
+            workshop_names = product_data.workshops or []  # уже строки
 
-                result = await db.execute(
-                    select(Workshop).where(Workshop.name.in_(workshop_names))
-                )
-                workshops = result.scalars().all()
+            result = await db.execute(
+                select(Workshop).where(Workshop.name.in_(workshop_names))
+            )
+            workshops = result.scalars().all()
 
-                # Создаем словарь по строковому имени цеха (т.к. Workshop.name — Enum, но хранится как строка)
-                workshops_dict = {w.name.value: w.id for w in workshops}
+            # Создаем словарь по строковому имени цеха (т.к. Workshop.name — Enum, но хранится как строка)
+            workshops_dict = {w.name.value: w.id for w in workshops}
 
-                for ws_name in workshop_names:
-                    ws_id = workshops_dict.get(ws_name)
-                    if ws_id:
-                        new_task_workshop = TaskWorkshop(
-                            task_id=new_task.id,
-                            workshop_id=ws_id,
-                            status=StatusEnum("Новая"),
-                        )
-                        db.add(new_task_workshop)
-                    else:
-                        print(f"Workshop not found for {ws_name}")
+            for ws_name in workshop_names:
+                ws_id = workshops_dict.get(ws_name)
+                if ws_id:
+                    new_task_workshop = TaskWorkshop(
+                        task_id=new_task.id,
+                        workshop_id=ws_id,
+                        status=StatusEnum("Новая"),
+                    )
+                    db.add(new_task_workshop)
+                else:
+                    print(f"Workshop not found for {ws_name}")
             await db.flush()
             # 7. Employees
             await db.refresh(new_task, attribute_names=["responsible_users"])

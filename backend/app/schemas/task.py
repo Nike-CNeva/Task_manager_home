@@ -1,24 +1,100 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
-from backend.app.models.enums import MaterialFormEnum, MaterialThicknessEnum, MaterialTypeEnum, StatusEnum, UrgencyEnum
+from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, MaterialFormEnum, MaterialThicknessEnum, MaterialTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum
 
 
+class TaskWorkshopRead(BaseModel):
+    id: int
+    workshop_id: int
+    status: StatusEnum
 
-class TaskBase(BaseModel):
+class CustomerShort(BaseModel):
+    id: int
+    name: str
+
+class BidReadShort(BaseModel):
+    id: int
+    task_number: int
+    manager: ManagerEnum
+    customer: CustomerShort 
+
+class ProfileRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    profile_type: ProfileTypeEnum
+    length: int
+
+class CassetteRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    cassette_type: CassetteTypeEnum
+    description: str | None = None
+
+class KlamerRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    klamer_type: KlamerTypeEnum
+
+class BracketRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    width: int
+    length: str
+
+class ExtensionBracketRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    width: int
+    length: str
+    hell: bool
+
+class LinearPanelRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    field: int
+    rust: int
+    length: int
+    butt_end: bool
+
+class ProductTRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    type: str  # Или ProductTypeEnum если ты хочешь enum
+    profile: ProfileRead | None = None
+    cassette: CassetteRead | None = None
+    klamer: KlamerRead | None = None
+    bracket: BracketRead | None = None
+    extension_bracket: ExtensionBracketRead | None = None
+    linear_panel: LinearPanelRead | None = None
+
+
+class MaterialReadShort(BaseModel):
+    id: int
+    form: MaterialFormEnum
+    type: MaterialTypeEnum
+    color: str
+    thickness: MaterialThicknessEnum
+    painting: bool
+
+class TaskRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    quantity: Optional[int] = Field(None, description="Количество")
-    urgency: UrgencyEnum = Field(..., description="Срочность")
-    status: StatusEnum = Field(..., description="Статус")
-    waste: Optional[str] = Field(None, description="Отходы")
-    weight: Optional[str] = Field(None, description="Вес")
-    created_at: datetime = Field(..., description="Дата создания")
-    completed_at: Optional[datetime] = Field(None, description="Дата завершения")
+    id: int
+    bid: BidReadShort
+    product: ProductTRead
+    material: MaterialReadShort
+    quantity: int
+    urgency: UrgencyEnum
+    status: StatusEnum
+    waste: Optional[str]
+    weight: Optional[str]
+    sheets: Optional[List[Dict[str, int]]]
+    created_at: datetime
+    completed_at: Optional[datetime]
+    workshops: List[TaskWorkshopRead]
 
 
-class TaskRead(TaskBase):
-    id: int = Field(..., description="ID задачи")
 
 
 

@@ -21,7 +21,7 @@ const showSheets = ref(false);
 watch(() => form.product_name, (newPname) => {
   const selectedProduct = props.referenceData.products.find(p => p.value === newPname);
 
-  showSheets.value = !!selectedProduct && ['Кассеты', 'Листы'].includes(selectedProduct.type);
+  showSheets.value = !!selectedProduct && ['Кассеты', 'Листы'].includes(selectedProduct.value);
 
   const productFieldSet = selectedProduct?.fields || [];
   productFields.value = productFieldSet;

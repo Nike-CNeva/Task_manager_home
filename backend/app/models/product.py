@@ -9,12 +9,12 @@ class Product(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     type: Mapped[ProductTypeEnum] = mapped_column(SQLEnum(ProductTypeEnum), nullable=False)
     tasks = relationship("Task", back_populates="product")
-    profile = relationship("Profile", back_populates="product", cascade="all, delete-orphan")
-    klamer = relationship("Klamer", back_populates="product", cascade="all, delete-orphan")
-    bracket = relationship("Bracket", back_populates="product", cascade="all, delete-orphan")
-    extension_bracket = relationship("ExtensionBracket", back_populates="product", cascade="all, delete-orphan")
-    cassette = relationship("Cassette", back_populates="product", cascade="all, delete-orphan")
-    linear_panel = relationship("LinearPanel", back_populates="product", cascade="all, delete-orphan")
+    profile = relationship("Profile", back_populates="product", cascade="all, delete-orphan", uselist=False)
+    klamer = relationship("Klamer", back_populates="product", cascade="all, delete-orphan", uselist=False)
+    bracket = relationship("Bracket", back_populates="product", cascade="all, delete-orphan", uselist=False)
+    extension_bracket = relationship("ExtensionBracket", back_populates="product", cascade="all, delete-orphan", uselist=False)
+    cassette = relationship("Cassette", back_populates="product", cascade="all, delete-orphan", uselist=False)
+    linear_panel = relationship("LinearPanel", back_populates="product", cascade="all, delete-orphan", uselist=False)
 
 # Profile Table
 class Profile(Base):

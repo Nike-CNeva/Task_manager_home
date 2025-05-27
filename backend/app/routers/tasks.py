@@ -80,6 +80,7 @@ async def create_bid(
             raise HTTPException(status_code=422, detail="Customer name is required")
         new_customer = await task_service.create_new_customer_async(db, customer_name)  # реализуй сам
         bid_data_dict["customer"] = new_customer.id  # заменяем строку "new" на реальный id
+        bid_data_dict["new_customer"] = None
 
     try:
         bid_info = BidCreate(**bid_data_dict)
@@ -132,7 +133,7 @@ async def get_reference_data(db: AsyncSession = Depends(get_db)):
             ]
         elif product["value"] == ProductTypeEnum.CASSETTE:
             fields = [
-                {"name": "cassette_type_id", "label": "Тип кассеты", "type": "select", "options": [{"value": ct.value, "name": ct.name} for ct in CassetteTypeEnum]},
+                {"name": "cassette_type", "label": "Тип кассеты", "type": "select", "options": [{"value": ct.value, "name": ct.name} for ct in CassetteTypeEnum]},
                 {"name": "description", "label": "Введите описание", "type": "text"},
                 {"name": "quantity", "label": "Введите количество кассет", "type": "number"}
             ]
