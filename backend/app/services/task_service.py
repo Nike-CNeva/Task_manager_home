@@ -190,9 +190,9 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
             # 7. Employees
             await db.refresh(new_task, attribute_names=["responsible_users"])
             for user_id in product_data.employees or []:
-                user: User | None = all_users.get(user_id)
-                if user:
-                    new_task.responsible_users.append(user)
+                employee: User | None = all_users.get(user_id)
+                if employee:
+                    new_task.responsible_users.append(employee)
 
 
         # 8. Files
