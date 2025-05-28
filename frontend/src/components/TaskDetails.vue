@@ -1,7 +1,7 @@
 <template>
   <div v-if="task">
     <h2>Детали задачи №{{ task.task_number }}</h2>
-
+    <button class="btn btn-secondary" @click="goBack">← Назад к списку задач</button>
     <p><strong>Заказчик:</strong> {{ task.customer?.name || '—' }}</p>
     <p><strong>Менеджер:</strong> {{ task.manager || '—' }}</p>
     <p><strong>Тип продукции:</strong> {{ firstTask?.product?.type || '—' }}</p>
@@ -37,7 +37,7 @@
     <p><strong>Дата завершения:</strong> {{ formatDate(firstTask?.completed_at) }}</p>
 
     <button class="btn btn-danger" @click="deleteTask(task.id)">Удалить задачу</button>
-    <button class="btn btn-secondary" @click="goBack">← Назад к списку задач</button>
+
   </div>
 
   <div v-else>
@@ -85,7 +85,9 @@ async function deleteTask(id) {
     alert('Не удалось удалить задачу')
   }
 }
-
+function goBack() {
+  router.push('/tasks')
+}
 onMounted(() => {
   const taskId = route.params.id
   if (taskId) {
@@ -107,5 +109,17 @@ p {
   border: 1px solid #ccc;
   border-radius: 8px;
   margin: 16px 0;
+}
+.btn {
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
 }
 </style>
