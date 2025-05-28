@@ -27,7 +27,7 @@ class CassetteRead(BaseModel):
 class KlamerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    type: KlamerTypeEnum
+    klamer_type: KlamerTypeEnum
 
 class BracketRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
