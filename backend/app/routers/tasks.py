@@ -108,7 +108,7 @@ async def get_reference_data(db: AsyncSession = Depends(get_db)):
     products_data = []
     quantity = {"name": "quantity", "label": "Количество", "type": "number"}
     for product in products:
-        fields = await get_product_fields(product["value"])
+        fields: List[dict] = await get_product_fields(product["value"])
         fields.append(quantity)
         products_data.append({
             "name": product["name"],
