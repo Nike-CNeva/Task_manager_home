@@ -37,6 +37,7 @@
     <p><strong>Дата завершения:</strong> {{ formatDate(firstTask?.completed_at) }}</p>
 
     <button class="btn btn-danger" @click="deleteTask(task.id)">Удалить задачу</button>
+    <button class="btn btn-secondary" @click="goBack">← Назад к списку задач</button>
   </div>
 
   <div v-else>
@@ -66,8 +67,6 @@ async function fetchTask(id) {
   try {
     const response = await api.get(`/task/${id}`)
     task.value = response.data
-    console.log('Заявка:', task.value)
-    console.log('Задача:', task.value.tasks?.[0])
   } catch (error) {
     console.error('Ошибка загрузки задачи:', error)
     alert('Не удалось загрузить задачу')
