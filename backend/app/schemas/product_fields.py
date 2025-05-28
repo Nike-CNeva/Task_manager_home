@@ -1,15 +1,15 @@
 
 
-from backend.app.models.enums import ProductTypeEnum
+from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ProductTypeEnum, ProfileTypeEnum
 
 
 product_fields_by_type = {
     ProductTypeEnum.PROFILE: [
-        {"name": "profile_type", "label": "Тип профиля", "type": "select"},
+        {"name": "profile_type", "label": "Тип профиля", "type": "select", "options": [{"value": pt.value, "name": pt.name} for pt in ProfileTypeEnum]},
         {"name": "length", "label": "Длина профиля", "type": "number"},
     ],
     ProductTypeEnum.KLAMER: [
-        {"name": "klamer_type", "label": "Тип клямера", "type": "select"},
+        {"name": "klamer_type", "label": "Тип клямера", "type": "select", "options": [{"value": kt.value, "name": kt.name} for kt in KlamerTypeEnum]},
     ],
     ProductTypeEnum.BRACKET: [
         {"name": "width", "label": "Ширина", "type": "number"},
@@ -21,7 +21,7 @@ product_fields_by_type = {
         {"name": "has_heel", "label": "Наличие пятки", "type": "checkbox"},
     ],
     ProductTypeEnum.CASSETTE: [
-        {"name": "cassette_type", "label": "Тип кассеты", "type": "select"},
+        {"name": "cassette_type", "label": "Тип кассеты", "type": "select", "options": [{"value": ct.value, "name": ct.name} for ct in CassetteTypeEnum]},
         {"name": "description", "label": "Описание", "type": "text"},
     ],
     ProductTypeEnum.LINEAR_PANEL: [
