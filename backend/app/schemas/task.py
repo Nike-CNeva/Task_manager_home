@@ -85,6 +85,7 @@ class TaskRead(BaseModel):
     created_at: datetime
     completed_at: Optional[datetime]
     workshops: Optional[List[TaskWorkshopRead]]
+    product_fields: List[Dict[str, Any]]
 
 class BidRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

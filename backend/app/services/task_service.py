@@ -13,6 +13,7 @@ from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
 from backend.app.models.comment import Comment
 from backend.app.schemas.bid import BidCreate
+from backend.app.schemas.product_fields import get_product_fields
 from backend.app.schemas.task import BidRead, BidRead, CustomerShort, MaterialReadShort, ProductTRead, TaskRead, TaskWorkshopRead
 from backend.app.services.file_service import save_file
 from backend.app.database.database_service import AsyncDatabaseService
@@ -45,6 +46,7 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
     bids_dict = defaultdict(list)
 
     for task in tasks:
+        product_fields = await get_product_fields(task.product.type)
         task_read = TaskRead(
             id=task.id,
             product=ProductTRead.model_validate(task.product, from_attributes=True),
@@ -69,7 +71,8 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
                     workshop_name=tw.workshop.name,
                     status=tw.status
                 ) for tw in task.workshops
-            ]
+            ],
+            product_fields=product_fields
         )
         bids_dict[task.bid.id].append((task.bid, task_read))
 
@@ -114,7 +117,7 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
 
     if task is None:
         return None
-
+    product_fields = await get_product_fields(task.product.type)
     task_read = TaskRead(
         id=task.id,
         product=ProductTRead.model_validate(task.product, from_attributes=True),
@@ -139,7 +142,8 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
                 workshop_name=tw.workshop.name,
                 status=tw.status
             ) for tw in task.workshops
-        ]
+        ],
+        product_fields=product_fields
     )
 
     bid_obj = task.bid
