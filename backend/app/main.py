@@ -32,6 +32,10 @@ app = FastAPI(
     debug=settings.DEBUG,
 #    lifespan=lifespan
 )
+# Подключаем Middleware
+app.add_middleware(AuthMiddleware)
+
+# Подключаем CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -39,8 +43,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Подключаем Middleware
-app.add_middleware(AuthMiddleware)
 
 
 # Подключение роутеров

@@ -5,9 +5,9 @@
     <table class="table table-striped table-hover sortable">
       <thead>
         <tr>
-          <th @click="sortBy('bid.task_number')">№</th>
-          <th @click="sortBy('bid.customer.name')">Заказчик</th>
-          <th @click="sortBy('bid.manager')">Менеджер</th>
+          <th @click="sortBy('task_number')">№</th>
+          <th @click="sortBy('customer.name')">Заказчик</th>
+          <th @click="sortBy('manager')">Менеджер</th>
           <th @click="sortBy('product.type')">Тип продукции</th>
           <th @click="sortBy('quantity')">Количество</th>
           <th class="no-sort">Материал</th>
@@ -21,10 +21,15 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="task in sortedTasks" :key="task.id" @click="goToTask(task.id)" style="cursor: pointer;">
-          <td>{{ task.bid.task_number }}</td>
-          <td>{{ task.bid.customer.name }}</td>
-          <td>{{ task.bid.manager }}</td>
+        <tr
+          v-for="task in sortedTasks"
+          :key="task.id"
+          @click="goToTask(task.id)"
+          style="cursor: pointer;"
+        >
+          <td>{{ task.task_number }}</td>
+          <td>{{ task.customer.name }}</td>
+          <td>{{ task.manager }}</td>
           <td>{{ task.product.type }}</td>
           <td>{{ task.quantity }}</td>
           <td>
@@ -45,8 +50,8 @@
           <td>{{ task.status }}</td>
           <td>
             <ul v-if="task.workshops && task.workshops.length" class="mb-0 ps-3">
-              <li v-for="ws in task.workshops" :key="ws.id">
-                Цех {{ ws.workshop_id }}: {{ ws.status }}
+              <li v-for="ws in task.workshops" :key="ws.workshop_name">
+                {{ ws.workshop_name }}: {{ ws.status }}
               </li>
             </ul>
             <span v-else class="text-muted">—</span>
@@ -68,14 +73,26 @@ import api from '@/utils/axios'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const rawBids = ref([])
 const tasks = ref([])
+
 const sortKey = ref('')
 const sortAsc = ref(true)
 
 onMounted(async () => {
   try {
     const response = await api.get('/tasks')
-    tasks.value = response.data
+    rawBids.value = response.data
+
+    // Преобразуем bid.tasks в один плоский массив с дополнительной инфой
+    tasks.value = rawBids.value.flatMap(bid =>
+      bid.tasks.map(task => ({
+        ...task,
+        task_number: bid.task_number,
+        customer: bid.customer,
+        manager: bid.manager,
+      }))
+    )
   } catch (error) {
     console.error('Ошибка загрузки задач:', error)
   }
@@ -99,10 +116,10 @@ function sortBy(key) {
 const sortedTasks = computed(() => {
   if (!sortKey.value) return tasks.value
 
-  return [...tasks.value].sort((a, b) => {
-    const getValue = (obj, path) =>
-      path.split('.').reduce((o, p) => (o ? o[p] : ''), obj)
+  const getValue = (obj, path) =>
+    path.split('.').reduce((o, p) => (o ? o[p] : ''), obj)
 
+  return [...tasks.value].sort((a, b) => {
     const valA = getValue(a, sortKey.value)
     const valB = getValue(b, sortKey.value)
 
@@ -134,6 +151,7 @@ async function deleteTask(id) {
   }
 }
 </script>
+
 
 <style scoped>
 table {

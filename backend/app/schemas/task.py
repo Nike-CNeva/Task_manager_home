@@ -1,23 +1,16 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
-from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, MaterialFormEnum, MaterialThicknessEnum, MaterialTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum
+from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, MaterialFormEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
 
 
 class TaskWorkshopRead(BaseModel):
-    id: int
-    workshop_id: int
+    workshop_name: WorkshopEnum
     status: StatusEnum
 
 class CustomerShort(BaseModel):
     id: int
     name: str
-
-class BidReadShort(BaseModel):
-    id: int
-    task_number: int
-    manager: ManagerEnum
-    customer: CustomerShort 
 
 class ProfileRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -34,7 +27,7 @@ class CassetteRead(BaseModel):
 class KlamerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    klamer_type: KlamerTypeEnum
+    type: KlamerTypeEnum
 
 class BracketRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -47,7 +40,7 @@ class ExtensionBracketRead(BaseModel):
     id: int
     width: int
     length: str
-    hell: bool
+    heel: bool
 
 class LinearPanelRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -60,7 +53,7 @@ class LinearPanelRead(BaseModel):
 class ProductTRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    type: str  # Или ProductTypeEnum если ты хочешь enum
+    type: ProductTypeEnum  # Или ProductTypeEnum если ты хочешь enum
     profile: ProfileRead | None = None
     cassette: CassetteRead | None = None
     klamer: KlamerRead | None = None
@@ -81,7 +74,6 @@ class TaskRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    bid: BidReadShort
     product: ProductTRead
     material: MaterialReadShort
     quantity: int
@@ -92,9 +84,16 @@ class TaskRead(BaseModel):
     sheets: Optional[List[Dict[str, int]]]
     created_at: datetime
     completed_at: Optional[datetime]
-    workshops: List[TaskWorkshopRead]
+    workshops: Optional[List[TaskWorkshopRead]]
 
-
+class BidRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    task_number: int
+    manager: ManagerEnum
+    customer: CustomerShort
+    tasks: List[TaskRead]
 
 
 

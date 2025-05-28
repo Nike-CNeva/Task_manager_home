@@ -1,14 +1,11 @@
 import datetime
-from pprint import pprint
 from typing import List, Dict, Any
-from fastapi.background import P
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
 from backend.app.models.bid import Bid, Customer
 from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum
-from backend.app.models.files import Files
 from backend.app.models.material import Material, Sheets
 from backend.app.models.product import Bracket, Cassette, ExtensionBracket, Klamer, LinearPanel, Product, Profile
 from backend.app.models.task import Task, TaskWorkshop
@@ -16,36 +13,28 @@ from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
 from backend.app.models.comment import Comment
 from backend.app.schemas.bid import BidCreate
-from backend.app.schemas.task import BidReadShort, CustomerShort, MaterialReadShort, ProductTRead, TaskRead, TaskWorkshopRead
-from backend.app.schemas.user import UserRead
+from backend.app.schemas.task import BidRead, BidRead, CustomerShort, MaterialReadShort, ProductTRead, TaskRead, TaskWorkshopRead
 from backend.app.services.file_service import save_file
-from backend.app.services.user_service import get_user_workshop
 from backend.app.database.database_service import AsyncDatabaseService
 import logging
 from sqlalchemy.exc import SQLAlchemyError
-
+from collections import defaultdict
 logger = logging.getLogger(__name__)
 
-async def get_tasks_list(current_user: User, db: AsyncSession) -> List[TaskRead]:
+async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidRead]:
     stmt = (
         select(Task)
         .options(
             selectinload(Task.bid).selectinload(Bid.customer),
-            selectinload(Task.product)
-                .selectinload(Product.profile),
-            selectinload(Task.product)
-                .selectinload(Product.klamer),
-            selectinload(Task.product)
-                .selectinload(Product.bracket),
-            selectinload(Task.product)
-                .selectinload(Product.extension_bracket),
-            selectinload(Task.product)
-                .selectinload(Product.cassette),
-            selectinload(Task.product)
-                .selectinload(Product.linear_panel),
+            selectinload(Task.product).selectinload(Product.profile),
+            selectinload(Task.product).selectinload(Product.klamer),
+            selectinload(Task.product).selectinload(Product.bracket),
+            selectinload(Task.product).selectinload(Product.extension_bracket),
+            selectinload(Task.product).selectinload(Product.cassette),
+            selectinload(Task.product).selectinload(Product.linear_panel),
             selectinload(Task.material),
             selectinload(Task.sheets),
-            selectinload(Task.workshops).selectinload(TaskWorkshop.workshop)
+            selectinload(Task.workshops).selectinload(TaskWorkshop.workshop),
         )
         .order_by(Task.created_at.desc())
     )
@@ -53,20 +42,11 @@ async def get_tasks_list(current_user: User, db: AsyncSession) -> List[TaskRead]
     result = await db.execute(stmt)
     tasks = result.scalars().unique().all()
 
-    task_reads = []
+    bids_dict = defaultdict(list)
 
     for task in tasks:
         task_read = TaskRead(
             id=task.id,
-            bid=BidReadShort(
-                id=task.bid.id,
-                task_number=task.bid.task_number,
-                manager=task.bid.manager,
-                customer=CustomerShort(
-                    id=task.bid.customer.id,
-                    name=task.bid.customer.name
-                )
-            ),
             product=ProductTRead.model_validate(task.product, from_attributes=True),
             material=MaterialReadShort.model_validate(task.material, from_attributes=True),
             quantity=task.quantity,
@@ -74,29 +54,41 @@ async def get_tasks_list(current_user: User, db: AsyncSession) -> List[TaskRead]
             status=task.status,
             waste=task.waste,
             weight=task.weight,
-            sheets = [
+            sheets=[
                 {
                     "id": s.id,
                     "count": s.quantity,
                     "width": s.width,
                     "length": s.length
-                } 
-                for s in task.sheets
+                } for s in task.sheets
             ] if task.sheets else [],
             created_at=task.created_at,
             completed_at=task.completed_at,
             workshops=[
                 TaskWorkshopRead(
-                    id=tw.id,
-                    workshop_id=tw.workshop_id,
+                    workshop_name=tw.workshop.name,
                     status=tw.status
                 ) for tw in task.workshops
             ]
         )
+        bids_dict[task.bid.id].append((task.bid, task_read))
 
-        task_reads.append(task_read)
+    bid_reads = []
+    for bid_id, task_group in bids_dict.items():
+        bid_obj, _ = task_group[0]
+        bid_read = BidRead(
+            id=bid_obj.id,
+            task_number=bid_obj.task_number,
+            manager=bid_obj.manager,
+            customer=CustomerShort(
+                id=bid_obj.customer.id,
+                name=bid_obj.customer.name
+            ),
+            tasks=[t for _, t in task_group]
+        )
+        bid_reads.append(bid_read)
 
-    return task_reads
+    return bid_reads
 
 
 async def get_task_by_id(task_id: int, db: AsyncSession) -> TaskRead:
@@ -156,7 +148,7 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
             elif product_data.product_name == ProductTypeEnum.KLAMER.value:
                 new_klamer = Klamer(
                     product_id = new_product.id,
-                    klamer_type=product_data.product_details["klamer_type"],
+                    type=product_data.product_details["klamer_type"],
                 )
                 db.add(new_klamer)
             elif product_data.product_name == ProductTypeEnum.BRACKET.value:
@@ -171,7 +163,7 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
                     product_id = new_product.id,
                     width = product_data.product_details["width"],
                     length = product_data.product_details["length"],
-                    heel = product_data.product_details["heel"],
+                    heel = product_data.product_details["has_heel"],
                 )
                 db.add(new_extension_bracket)
             elif product_data.product_name == ProductTypeEnum.CASSETTE.value:

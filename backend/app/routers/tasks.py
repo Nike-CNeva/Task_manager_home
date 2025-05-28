@@ -11,7 +11,7 @@ from backend.app.models.workshop import Workshop
 from backend.app.schemas.bid import BidCreate
 from backend.app.schemas.create_bid import ReferenceDataResponse
 from backend.app.schemas.customer import CustomerRead
-from backend.app.schemas.task import TaskRead
+from backend.app.schemas.task import BidRead
 from backend.app.schemas.user import EmployeeOut
 from backend.app.schemas.workshop import WorkshopRead
 from backend.app.services import task_service
@@ -22,17 +22,17 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.get("/tasks", response_model=List[TaskRead])
+@router.get("/tasks", response_model=List[BidRead])
 async def get_tasks(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        tasks = await task_service.get_tasks_list(current_user, db)
+        tasks = await task_service.get_bids_with_tasks(current_user, db)
         return tasks
     except Exception as e:
         logger.error(f"❌ Ошибка при получении задач: {e}")
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
     
 
-@router.get("/task/{task_id}", response_model=TaskRead)
+@router.get("/task/{task_id}", response_model=BidRead)
 async def get_task(task_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     task = await task_service.get_task_by_id(task_id, db)
     if not task:
@@ -115,7 +115,7 @@ async def get_reference_data(db: AsyncSession = Depends(get_db)):
             ]
         elif product["value"] == ProductTypeEnum.KLAMER:
             fields = [
-                {"name": "klamer_type_id", "label": "Тип клямера", "type": "select", "options": [{"value": kt.value, "name": kt.name} for kt in KlamerTypeEnum]},
+                {"name": "klamer_type", "label": "Тип клямера", "type": "select", "options": [{"value": kt.value, "name": kt.name} for kt in KlamerTypeEnum]},
                 {"name": "quantity", "label": "Введите количество клямеров", "type": "number"}
             ]
         elif product["value"] == ProductTypeEnum.BRACKET:
