@@ -34,7 +34,7 @@ async def get_tasks(db: AsyncSession = Depends(get_db), current_user: User = Dep
 
 @router.get("/task/{task_id}", response_model=BidRead)
 async def get_task(task_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    task = await task_service.get_task_by_id(task_id, db)
+    task = await task_service.get_bid_by_task_id(task_id, db)
     if not task:
         raise HTTPException(status_code=404, detail="Задача не найдена")
     return task
