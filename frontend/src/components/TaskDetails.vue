@@ -1,61 +1,129 @@
 <template>
   <div v-if="task">
-    <h2>Детали задачи №{{ task.task_number }}</h2>
-    <button class="btn btn-secondary" @click="goBack">← Назад к списку задач</button>
-    <p><strong>Заказчик:</strong> {{ task.customer?.name || '—' }}</p>
-    <p><strong>Менеджер:</strong> {{ task.manager || '—' }}</p>
-    <p><strong>Тип продукции:</strong> {{ firstTask?.product?.type || '—' }}</p>
-    <p><strong>Количество:</strong> {{ firstTask?.quantity || '—' }}</p>
+    <!-- твои текущие поля задачи ... -->
 
-    <p><strong>Материал:</strong>
-      <span v-if="firstTask?.material">
-        {{ firstTask.material.type }} {{ firstTask.material.color }} {{ firstTask.material.thickness }}
-      </span>
-      <span v-else>—</span>
-    </p>
+    <h3>Параметры продукта</h3>
+    <div v-if="firstTask && productFields.length">
+      <div v-for="field in productFields" :key="field.name" class="form-group">
+        <label :for="field.name">{{ field.label }}</label>
 
-    <p><strong>Листы:</strong></p>
-    <ul v-if="firstTask?.sheets?.length">
-      <li v-for="sheet in firstTask.sheets" :key="sheet.id">
-        {{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}
-      </li>
-    </ul>
-    <p v-else>—</p>
+        <template v-if="field.type === 'select'">
+          <select
+            :id="field.name"
+            v-model="firstTask[field.name]"
+            class="form-control"
+          >
+            <option
+              v-for="option in field.options"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.name }}
+            </option>
+          </select>
+        </template>
 
-    <p><strong>Срочность:</strong> {{ firstTask?.urgency || '—' }}</p>
-    <p><strong>Статус:</strong> {{ firstTask?.status || '—' }}</p>
+        <template v-else-if="field.type === 'checkbox'">
+          <input
+            type="checkbox"
+            :id="field.name"
+            v-model="firstTask[field.name]"
+          />
+        </template>
 
-    <p><strong>Статус цехов:</strong></p>
-    <ul v-if="firstTask?.workshops?.length">
-      <li v-for="ws in firstTask.workshops" :key="ws.workshop_name">
-        {{ ws.workshop_name }}: {{ ws.status }}
-      </li>
-    </ul>
-    <p v-else>—</p>
-
-    <p><strong>Дата создания:</strong> {{ formatDate(firstTask?.created_at) }}</p>
-    <p><strong>Дата завершения:</strong> {{ formatDate(firstTask?.completed_at) }}</p>
+        <template v-else>
+          <input
+            :type="field.type"
+            :id="field.name"
+            v-model="firstTask[field.name]"
+            class="form-control"
+          />
+        </template>
+      </div>
+    </div>
 
     <button class="btn btn-danger" @click="deleteTask(task.id)">Удалить задачу</button>
-
   </div>
 
   <div v-else>
     <p>Загрузка задачи...</p>
   </div>
 </template>
+
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/utils/axios'
 
+// Импортируй enum или объяви здесь соответствия, для примера сделал объект с полями:
+const ProductTypeEnum = {
+  PROFILE: 'Профиля',
+  KLAMER: 'Клямера',
+  BRACKET: 'Кронштейны',
+  EXTENSION_BRACKET: 'Удлинители кронштейнов',
+  CASSETTE: 'Кассеты',
+  LINEAR_PANEL: 'Линеарные панели',
+  SHEET: 'Листы',
+}
+
 const route = useRoute()
 const router = useRouter()
 
 const task = ref(null)
-
-// Поскольку задача всегда одна, достаём первую
 const firstTask = computed(() => task.value?.tasks?.[0] || null)
+
+// Функция возвращает поля для конкретного типа продукта
+function getProductFields(type) {
+  switch(type) {
+    case ProductTypeEnum.PROFILE:
+      return [
+        { name: 'profile_type', label: 'Тип профиля', type: 'select', options: ProfileTypeEnum },
+        { name: 'length', label: 'Введите длину профиля', type: 'number' },
+        { name: 'quantity', label: 'Введите количество профилей', type: 'number' },
+      ]
+    case ProductTypeEnum.KLAMER:
+      return [
+        { name: 'klamer_type', label: 'Тип клямера', type: 'select', options: KlamerTypeEnum },
+        { name: 'quantity', label: 'Введите количество клямеров', type: 'number' },
+      ]
+    case ProductTypeEnum.BRACKET:
+      return [
+        { name: 'width', label: 'Ширина', type: 'number' },
+        { name: 'length', label: 'Длина', type: 'text' },
+        { name: 'quantity', label: 'Количество кронштейнов', type: 'number' },
+      ]
+    case ProductTypeEnum.EXTENSION_BRACKET:
+      return [
+        { name: 'width', label: 'Ширина', type: 'number' },
+        { name: 'length', label: 'Длина', type: 'text' },
+        { name: 'has_heel', label: 'Наличие пятки', type: 'checkbox' },
+        { name: 'quantity', label: 'Количество удлинителей', type: 'number' },
+      ]
+    case ProductTypeEnum.CASSETTE:
+      return [
+        { name: 'cassette_type', label: 'Тип кассеты', type: 'select', options: CassetteTypeEnum },
+        { name: 'description', label: 'Введите описание', type: 'text' },
+        { name: 'quantity', label: 'Введите количество кассет', type: 'number' },
+      ]
+    case ProductTypeEnum.LINEAR_PANEL:
+      return [
+        { name: 'panel_width', label: 'Поле', type: 'number' },
+        { name: 'groove', label: 'Руст', type: 'number' },
+        { name: 'length', label: 'Длина', type: 'number' },
+        { name: 'has_endcap', label: 'Наличие торцевания', type: 'checkbox' },
+        { name: 'quantity', label: 'Количество панелей', type: 'number' },
+      ]
+    case ProductTypeEnum.SHEET:
+      return []
+    default:
+      return [{ name: 'quantity', label: 'Количество', type: 'number' }]
+  }
+}
+
+const productFields = computed(() => {
+  if (!firstTask.value || !firstTask.value.product) return []
+  return getProductFields(firstTask.value.product.type)
+})
 
 function formatDate(dateStr) {
   if (!dateStr) return '—'
@@ -70,7 +138,7 @@ async function fetchTask(id) {
   } catch (error) {
     console.error('Ошибка загрузки задачи:', error)
     alert('Не удалось загрузить задачу')
-    router.push('/tasks') // возврат к списку
+    router.push('/tasks')
   }
 }
 
@@ -85,9 +153,11 @@ async function deleteTask(id) {
     alert('Не удалось удалить задачу')
   }
 }
+
 function goBack() {
   router.push('/tasks')
 }
+
 onMounted(() => {
   const taskId = route.params.id
   if (taskId) {
@@ -98,28 +168,14 @@ onMounted(() => {
   }
 })
 </script>
+
 <style scoped>
-p {
-  font-size: 16px;
-  margin: 8px 0;
+.form-group {
+  margin-bottom: 1rem;
 }
-
-.subtask-block {
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  margin: 16px 0;
-}
-.btn {
-  margin-bottom: 16px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
+.form-control {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 1rem;
 }
 </style>
