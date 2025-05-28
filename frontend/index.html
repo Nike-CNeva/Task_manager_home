@@ -5,7 +5,12 @@
     <title>Task Manager</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="preloader" style="height:100vh; display:flex; justify-content:center; align-items:center;">
+      <span>Загрузка приложения...</span>
+    </div>
+  
+    <div id="app" style="display:none;"></div>
+  
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

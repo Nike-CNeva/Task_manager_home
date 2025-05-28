@@ -3,20 +3,30 @@
     <div class="col-md-12">
       <div class="card">
         <div class="card-body">
+
           <p>Текущая дата и время: <span>{{ currentTime }}</span></p>
 
-          <div v-if="userAuthenticated" class="auth-content">
-            <h2>Добро пожаловать, {{ userName }}!</h2>
-            <router-link to="/tasks" class="btn btn-success">Перейти к задачам</router-link>
+          <!-- Если загружаемся — показываем лоадер -->
+          <div v-if="loading" class="text-center my-4">
+            <span>Загрузка данных...</span>
           </div>
 
-          <div v-else class="auth-content">
-            <div class="alert alert-warning mt-4">
-              <h4 class="alert-heading">Добро пожаловать на главную страницу!</h4>
-              <p>Пожалуйста, авторизуйтесь, чтобы начать работать.</p>
-              <router-link to="/login" class="btn btn-primary">Войти</router-link>
+          <!-- Если данные загружены -->
+          <div v-else>
+            <div v-if="userAuthenticated" class="auth-content">
+              <h2>Добро пожаловать, {{ userName }}!</h2>
+              <router-link to="/tasks" class="btn btn-success">Перейти к задачам</router-link>
+            </div>
+
+            <div v-else class="auth-content">
+              <div class="alert alert-warning mt-4">
+                <h4 class="alert-heading">Добро пожаловать на главную страницу!</h4>
+                <p>Пожалуйста, авторизуйтесь, чтобы начать работать.</p>
+                <router-link to="/login" class="btn btn-primary">Войти</router-link>
+              </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
@@ -25,7 +35,7 @@
 
 <script>
 import { mapState } from 'vuex';
-import api from '@/utils/axios'; // импорт твоего axios-инстанса с токеном
+import api from '@/utils/axios';
 
 export default {
   data() {
@@ -33,6 +43,7 @@ export default {
       currentTime: '',
       user: null,
       timerId: null,
+      loading: false,  // вот она — переменная загрузки
     };
   },
   computed: {
@@ -52,29 +63,24 @@ export default {
     this.timerId = setInterval(this.updateTime, 1000);
   },
   beforeUnmount() {
-    clearInterval(this.timerId); // очищаем таймер при размонтировании компонента
+    clearInterval(this.timerId);
   },
   methods: {
     async getData() {
+      this.loading = true;  // старт загрузки
       try {
-        // axios уже автоматически добавит Authorization из интерсептора
         const { data } = await api.get('/');
-
         this.currentTime = new Date(data.current_datetime).toLocaleString();
         this.user = data.user;
       } catch (error) {
         console.error("Ошибка при получении данных:", error);
+      } finally {
+        this.loading = false; // загрузка завершена (успех или ошибка)
       }
     },
-
     updateTime() {
       this.currentTime = new Date().toLocaleString();
     }
   }
 };
 </script>
-
-
-<style scoped>
-
-</style>

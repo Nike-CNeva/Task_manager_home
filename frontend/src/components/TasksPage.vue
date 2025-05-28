@@ -1,8 +1,14 @@
 <template>
   <div>
     <h2 class="my-4">Список задач</h2>
-
-    <table class="table table-striped table-hover sortable">
+    <!-- Лоадер -->
+    <div v-if="loading" class="text-center my-4">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Загрузка...</span>
+      </div>
+      <p>Загрузка данных...</p>
+    </div>
+    <table v-else class="table table-striped table-hover sortable">
       <thead>
         <tr>
           <th @click="sortBy('task_number')">№</th>
@@ -75,11 +81,12 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const rawBids = ref([])
 const tasks = ref([])
-
+const loading = ref(true)
 const sortKey = ref('')
 const sortAsc = ref(true)
 
 onMounted(async () => {
+  loading.value = true
   try {
     const response = await api.get('/tasks')
     rawBids.value = response.data
@@ -95,6 +102,8 @@ onMounted(async () => {
     )
   } catch (error) {
     console.error('Ошибка загрузки задач:', error)
+  } finally {
+    loading.value = false
   }
 })
 
