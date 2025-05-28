@@ -66,6 +66,8 @@ async function fetchTask(id) {
   try {
     const response = await api.get(`/task/${id}`)
     task.value = response.data
+    console.log('Заявка:', task.value)
+    console.log('Задача:', task.value.tasks?.[0])
   } catch (error) {
     console.error('Ошибка загрузки задачи:', error)
     alert('Не удалось загрузить задачу')
