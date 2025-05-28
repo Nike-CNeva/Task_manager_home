@@ -1,143 +1,102 @@
 <template>
-    <div>
-      <h2 class="my-4">Детали задачи №{{ task.task_number }}</h2>
-  
-      <div v-if="task">
-        <table class="table table-bordered">
-          <tbody>
-            <tr>
-              <th>Заказчик</th>
-              <td>{{ task.customer.name }}</td>
-            </tr>
-            <tr>
-              <th>Менеджер</th>
-              <td>{{ task.manager }}</td>
-            </tr>
-            <tr>
-              <th>Тип продукции</th>
-              <td>{{ task.product.type }}</td>
-            </tr>
-            <tr>
-              <th>Количество</th>
-              <td>{{ task.quantity }}</td>
-            </tr>
-            <tr>
-              <th>Материал</th>
-              <td>
-                <template v-if="task.material">
-                  {{ task.material.type }} {{ task.material.color }} {{ task.material.thickness }}
-                </template>
-                <span v-else class="text-muted">—</span>
-              </td>
-            </tr>
-            <tr>
-              <th>Листы</th>
-              <td>
-                <ul v-if="task.sheets && task.sheets.length" class="mb-0 ps-3">
-                  <li v-for="sheet in task.sheets" :key="sheet.id">
-                    {{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}
-                  </li>
-                </ul>
-                <span v-else class="text-muted">—</span>
-              </td>
-            </tr>
-            <tr>
-              <th>Срочность</th>
-              <td>{{ task.urgency }}</td>
-            </tr>
-            <tr>
-              <th>Статус</th>
-              <td>{{ task.status }}</td>
-            </tr>
-            <tr>
-              <th>Статус цехов</th>
-              <td>
-                <ul v-if="task.workshops && task.workshops.length" class="mb-0 ps-3">
-                  <li v-for="ws in task.workshops" :key="ws.workshop_name">
-                    {{ ws.workshop_name }}: {{ ws.status }}
-                  </li>
-                </ul>
-                <span v-else class="text-muted">—</span>
-              </td>
-            </tr>
-            <tr>
-              <th>Дата создания</th>
-              <td>{{ formatDate(task.created_at) }}</td>
-            </tr>
-            <tr>
-              <th>Дата завершения</th>
-              <td>{{ formatDate(task.completed_at) }}</td>
-            </tr>
-          </tbody>
-        </table>
-  
-        <button class="btn btn-secondary" @click="goBack">Назад к списку</button>
-      </div>
-  
-      <div v-else>
-        <p>Загрузка данных задачи...</p>
-      </div>
-    </div>
-  </template>
-  
-  <script setup>
-  import { ref, onMounted } from 'vue'
-  import api from '@/utils/axios'
-  import { useRoute, useRouter } from 'vue-router'
-  
-  const route = useRoute()
-  const router = useRouter()
-  const task = ref(null)
-  
-  async function loadTask(id) {
-    try {
-      const response = await api.get(`/task/${id}`)
-      task.value = response.data
-    } catch (err) {
-      console.error('Ошибка загрузки задачи:', err)
-      alert('Не удалось загрузить задачу')
-      router.push('/tasks')
-    }
+  <div v-if="task">
+    <h2>Детали задачи №{{ task.task_number }}</h2>
+
+    <p><strong>Заказчик:</strong> {{ task.customer?.name || '—' }}</p>
+    <p><strong>Менеджер:</strong> {{ task.manager || '—' }}</p>
+    <p><strong>Тип продукции:</strong> {{ task.product?.type || '—' }}</p>
+    <p><strong>Количество:</strong> {{ task.quantity || '—' }}</p>
+
+    <p><strong>Материал:</strong>
+      <span v-if="task.material">
+        {{ task.material.type }} {{ task.material.color }} {{ task.material.thickness }}
+      </span>
+      <span v-else>—</span>
+    </p>
+
+    <p><strong>Листы:</strong></p>
+    <ul v-if="task.sheets && task.sheets.length">
+      <li v-for="sheet in task.sheets" :key="sheet.id">
+        {{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}
+      </li>
+    </ul>
+    <p v-else>—</p>
+
+    <p><strong>Срочность:</strong> {{ task.urgency || '—' }}</p>
+    <p><strong>Статус:</strong> {{ task.status || '—' }}</p>
+
+    <p><strong>Статус цехов:</strong></p>
+    <ul v-if="task.workshops && task.workshops.length">
+      <li v-for="ws in task.workshops" :key="ws.workshop_name">
+        {{ ws.workshop_name }}: {{ ws.status }}
+      </li>
+    </ul>
+    <p v-else>—</p>
+
+    <p><strong>Дата создания:</strong> {{ formatDate(task.created_at) }}</p>
+    <p><strong>Дата завершения:</strong> {{ formatDate(task.completed_at) }}</p>
+
+    <button class="btn btn-danger" @click="deleteTask(task.id)">Удалить задачу</button>
+  </div>
+
+  <div v-else>
+    <p>Загрузка задачи...</p>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import api from '@/utils/axios'
+
+const route = useRoute()
+const router = useRouter()
+
+const task = ref(null)
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—'
+  const date = new Date(dateStr)
+  return date.toLocaleDateString()
+}
+
+async function fetchTask(id) {
+  try {
+    const response = await api.get(`/task/${id}`)
+    task.value = response.data
+  } catch (error) {
+    console.error('Ошибка загрузки задачи:', error)
+    alert('Не удалось загрузить задачу')
+    router.push('/tasks') // возврат к списку
   }
-  
-  function formatDate(dateStr) {
-    if (!dateStr) return '—'
-    const date = new Date(dateStr)
-    return date.toLocaleDateString()
+}
+
+async function deleteTask(id) {
+  if (!confirm('Удалить задачу?')) return
+  try {
+    await api.delete(`/task/${id}/delete`)
+    alert('Задача удалена')
+    router.push('/tasks')
+  } catch (error) {
+    console.error('Ошибка удаления:', error)
+    alert('Не удалось удалить задачу')
   }
-  
-  function goBack() {
+}
+
+onMounted(() => {
+  const taskId = route.params.id
+  if (taskId) {
+    fetchTask(taskId)
+  } else {
+    alert('ID задачи не указан')
     router.push('/tasks')
   }
-  
-  onMounted(() => {
-    const id = route.params.id
-    loadTask(id)
-  })
-  </script>
-  
-  <style scoped>
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-  }
-  th {
-    width: 200px;
-    background-color: #f8f9fa;
-    text-align: left;
-    padding: 8px;
-    border: 1px solid #ddd;
-  }
-  td {
-    border: 1px solid #ddd;
-    padding: 8px;
-  }
-  .text-muted {
-    color: #888;
-  }
-  button {
-    margin-top: 10px;
-  }
-  </style>
-  
+})
+</script>
+
+<style scoped>
+p {
+  font-size: 16px;
+  margin: 8px 0;
+}
+</style>
