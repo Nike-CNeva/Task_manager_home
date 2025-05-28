@@ -30,7 +30,7 @@ class Klamer(Base):
     __tablename__ = "klamer"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
-    type: Mapped[KlamerTypeEnum] = mapped_column(SQLEnum(KlamerTypeEnum), nullable=False)
+    klamer_type: Mapped[KlamerTypeEnum] = mapped_column(SQLEnum(KlamerTypeEnum), nullable=False)
     product = relationship("Product", back_populates="klamer")
 
 # Bracket Table
