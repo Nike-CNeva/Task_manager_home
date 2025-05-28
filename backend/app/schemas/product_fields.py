@@ -34,5 +34,9 @@ product_fields_by_type = {
 }
 
 async def get_product_fields(product_type: str):
-    enum_type = ProductTypeEnum(product_type)
-    return product_fields_by_type[enum_type]
+    try:
+        enum_type = ProductTypeEnum(product_type)
+        field = product_fields_by_type.get(enum_type)
+    except ValueError:
+        field = []
+    return field
