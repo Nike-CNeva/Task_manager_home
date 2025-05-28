@@ -142,7 +142,7 @@ async function deleteTask(id) {
   if (!confirm('Удалить задачу?')) return
 
   try {
-    await api.post(`/task/${id}/delete`)
+    await api.delete(`/task/${id}/delete`)
     tasks.value = tasks.value.filter(t => t.id !== id)
     alert('Задача удалена')
   } catch (err) {

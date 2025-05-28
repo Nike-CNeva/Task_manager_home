@@ -7,11 +7,13 @@ import UserManagement from '@/components/UserManagement.vue';
 import UserForm from '@/components/UserForm.vue';
 import ChangePassword from '@/components/ChangePassword.vue';
 import CreateBid from '../components/CreateBid.vue';
+import TaskDetails from '@/components/TaskDetails.vue';
 // другие страницы...
 
 const routes = [
   { path: '/', name: 'HomePage', component: HomePage, meta: { requiresAuth: true } },
   { path: '/tasks', name: 'TasksPage', component: TasksPage, meta: { requiresAuth: true } },
+  { path: '/tasks/:id', name: 'TaskDetails', component: TaskDetails, meta: { requiresAuth: true } },
   { path: '/profile', name: 'ProfilePage', component: ProfilePage, meta: { requiresAuth: true } },
   { path: '/profile/password', name: 'ChangePassword', component: ChangePassword, meta: { requiresAuth: true } },
   { path: '/admin/users', name: 'UserManagement', component: UserManagement, meta: { requiresAuth: true } },
