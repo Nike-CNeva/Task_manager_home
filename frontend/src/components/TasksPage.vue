@@ -23,7 +23,6 @@
           <th class="no-sort">Статус цехов</th>
           <th @click="sortBy('created_at')">Дата создания</th>
           <th @click="sortBy('completed_at')">Дата завершения</th>
-          <th class="no-sort">Действия</th>
         </tr>
       </thead>
       <tbody>
@@ -64,9 +63,6 @@
           </td>
           <td>{{ formatDate(task.created_at) }}</td>
           <td>{{ formatDate(task.completed_at) }}</td>
-          <td @click.stop>
-            <button class="btn btn-sm btn-danger" @click="deleteTask(task.id)">Удалить</button>
-          </td>
         </tr>
       </tbody>
     </table>
@@ -145,19 +141,6 @@ const sortedTasks = computed(() => {
 
 function goToTask(id) {
   router.push(`/tasks/${id}`)
-}
-
-async function deleteTask(id) {
-  if (!confirm('Удалить задачу?')) return
-
-  try {
-    await api.delete(`/task/${id}/delete`)
-    tasks.value = tasks.value.filter(t => t.id !== id)
-    alert('Задача удалена')
-  } catch (err) {
-    console.error('Ошибка удаления:', err)
-    alert('Не удалось удалить задачу')
-  }
 }
 </script>
 
