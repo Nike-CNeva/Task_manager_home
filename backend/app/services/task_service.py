@@ -209,9 +209,9 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
             for sheet in product_entry.sheets:
                 db.add(Sheets(
                     task_id=task.id,
-                    width=sheet["width"],
-                    length=sheet["length"],
-                    quantity=sheet["quantity"]
+                    width=sheet.width,
+                    length=sheet.length,
+                    quantity=sheet.quantity
                 ))
 
             # Привязка к цехам
