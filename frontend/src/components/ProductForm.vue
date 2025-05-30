@@ -133,10 +133,10 @@ watch(form, () => {
           </select>
         </template>
         <template v-else-if="field.type === 'checkbox'">
-          <label>
+          <div class="checkbox-wrapper">
             <input type="checkbox" v-model="form.product_details[i][field.name]" />
-            {{ field.label }}
-          </label>
+            <label>{{ field.label }}</label>
+          </div>
         </template>
         <template v-else>
           <input :type="field.type" :placeholder="field.label" v-model="form.product_details[i][field.name]" />
@@ -221,7 +221,11 @@ watch(form, () => {
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
   outline: none;
 }
-
+.checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 button {
   width: auto;
   margin-top: 0;
