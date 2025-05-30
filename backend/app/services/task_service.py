@@ -48,6 +48,7 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
             selectinload(Task.material),
             selectinload(Task.sheets),
             selectinload(Task.workshops).selectinload(TaskWorkshop.workshop),
+            selectinload(Task.bid).selectinload(Bid.tasks).selectinload(Task.task_products)
         )
         .order_by(Task.created_at.desc())
     )
@@ -102,6 +103,9 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
     bid_reads = []
     for bid_id, task_group in bids_dict.items():
         bid_obj, _ = task_group[0]
+        # ⬇ Асинхронный расчет прогресса
+        progress = await bid_obj.get_progress_percent(db)
+
         bid_read = BidRead(
             id=bid_obj.id,
             task_number=bid_obj.task_number,
@@ -111,7 +115,7 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
                 name=bid_obj.customer.name
             ),
             tasks=[t for _, t in task_group],
-            progress_percent=bid_obj.progress_percent
+            progress_percent=progress
         )
         bid_reads.append(bid_read)
 

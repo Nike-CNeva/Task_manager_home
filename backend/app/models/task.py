@@ -4,7 +4,7 @@ from backend.app.database.database import Base
 from backend.app.models.enums import UrgencyEnum, StatusEnum
 from sqlalchemy.sql import func
 from backend.app.models.association_table import *
-
+from sqlalchemy.ext.asyncio import AsyncSession
 # Task Table
 class Task(Base):
     __tablename__ = "task"
@@ -34,6 +34,13 @@ class Task(Base):
     def progress_percent(self):
         total = self.total_quantity
         done = self.done_quantity
+        return (done / total * 100) if total else 0
+    
+    async def get_progress_percent(self, session: AsyncSession) -> float:
+        # Асинхронно обновить/подгрузить task_products
+        await session.refresh(self, ['task_products'])
+        total = sum(tp.quantity for tp in self.task_products)
+        done = sum(tp.done_quantity for tp in self.task_products)
         return (done / total * 100) if total else 0
     
 # TaskWorkshop Table
