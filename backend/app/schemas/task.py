@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
-from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, MaterialFormEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
+from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
 
 
 class TaskWorkshopRead(BaseModel):
@@ -64,7 +64,6 @@ class ProductTRead(BaseModel):
 
 class MaterialReadShort(BaseModel):
     id: int
-    form: MaterialFormEnum
     type: MaterialTypeEnum
     color: str
     thickness: MaterialThicknessEnum
@@ -104,7 +103,6 @@ class TaskCreate(BaseModel):
     """
     product_name: str = Field(..., description="имя продукта")
     product_details: Dict[str, Any] = Field(..., description="Детали продукта")
-    material_form: MaterialFormEnum = Field(..., description="Форма материала")
     material_type: MaterialTypeEnum = Field(..., description="Тип материала")
     color: str = Field(..., description="Цвет материала")
     painting: bool = Field(..., description="Нужна ли покраска")
