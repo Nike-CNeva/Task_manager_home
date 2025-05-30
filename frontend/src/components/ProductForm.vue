@@ -7,14 +7,14 @@ const emit = defineEmits(['update', 'remove']);
 const form = reactive({
   product_name: props.product.value || '',
   product_details: props.product.fields || {},
-  material_details: props.product.materials || {},
+  material: props.product.materials || {},
   sheets: props.product.sheets || [],
   urgency: props.product.urgency || '',
   workshops: props.product.workshops || [],
   employees: props.product.employees || [],
   color: props.product.color || '',
   quantity: props.product.quantity || '',
-  painting: props.product.painting || False,
+  painting: props.product.painting ,
 });
 
 const productFields = ref([])
