@@ -29,23 +29,27 @@ watch(() => form.product_name, (newPname) => {
   const productFieldSet = selectedProduct?.fields || [];
   productFields.value = productFieldSet;
 
-  const createEmptyPosition = () => {
-    const pos = {};
-    productFieldSet.forEach(field => {
-      switch (field.type) {
-        case 'select':
-        case 'number':
-          pos[field.name] = '';
-          break;
-        case 'checkbox':
-          pos[field.name] = false;
-          break;
-        default:
-          pos[field.name] = '';
+const createEmptyPosition = () => {
+  const pos = {};
+  productFieldSet.forEach(field => {
+    switch (field.type) {
+      case 'select': {
+        const selectOptions = field.options || [];
+        pos[field.name] = selectOptions.length > 0 ? selectOptions[0].value : '';
+        break;
       }
-    });
-    return pos;
-  };
+      case 'number':
+        pos[field.name] = '';
+        break;
+      case 'checkbox':
+        pos[field.name] = false;
+        break;
+      default:
+        pos[field.name] = '';
+    }
+  });
+  return pos;
+};
 
   if (!Array.isArray(form.product_details) || form.product_details.length === 0) {
     form.product_details = [createEmptyPosition()];
@@ -71,11 +75,7 @@ watch(() => form.product_name, (newPname) => {
 }, { immediate: true });
 
 function addPosition() {
-  const pos = {};
-  productFields.value.forEach(field => {
-    pos[field.name] = field.type === 'checkbox' ? false : '';
-  });
-  form.product_details.push(pos);
+  form.product_details.push(createEmptyPosition());
   emitUpdate();
 }
 
@@ -123,6 +123,7 @@ watch(form, () => {
     </select>
 
     <div v-for="(position, i) in form.product_details" :key="i" class="position-block">
+      <h3>Позиция {{ i + 1 }}</h3>
       <div v-for="field in productFields" :key="field.name" class="field-wrapper">
         <template v-if="field.type === 'select'">
           <select v-model="form.product_details[i][field.name]">
@@ -269,5 +270,12 @@ button:hover:not(:disabled) {
   border: 1px dashed #aaa;
   border-radius: 0.5rem;
   background-color: #f8f9fa;
+}
+.position-block h3 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #333;
 }
 </style>
