@@ -10,7 +10,11 @@
     </div>
 
     <div v-else>
-      <div v-for="(bid, index) in rawBids" :key="bid.id" class="mb-3 border rounded">
+      <div
+        v-for="(bid, index) in rawBids"
+        :key="bid.id"
+        class="mb-3 border rounded"
+      >
         <!-- Заголовок заявки -->
         <div class="p-3 bg-light" @click="toggle(index)" style="cursor: pointer;">
           <strong>Заявка №{{ bid.task_number }}</strong> — {{ bid.customer.name }} (Менеджер: {{ bid.manager }})
@@ -36,55 +40,52 @@
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="task in bid.tasks"
-                :key="task.id"
-                style="background-color: #f8f9fa;"
-              >
-                <!-- Объединение ячеек для общей информации по задаче -->
-                <td colspan="12" @click="goToTask(task.id)" style="cursor: pointer;">
-                  <strong>Задача №{{ task.id }}</strong> — Всего: {{ task.total_quantity }}, Выполнено: {{ task.done_quantity }} ({{ task.progress_percent }}%)
-                </td>
-              </tr>
+              <template v-for="task in bid.tasks" :key="task.id">
+                <tr style="background-color: #f8f9fa;">
+                  <td colspan="12" @click="goToTask(task.id)" style="cursor: pointer;">
+                    <strong>Задача №{{ task.id }}</strong> — Всего: {{ task.total_quantity }}, Выполнено: {{ task.done_quantity }} ({{ task.progress_percent }}%)
+                  </td>
+                </tr>
 
-              <tr
-                v-for="(tp, i) in task.task_products"
-                :key="i"
-                @click="goToTask(task.id)"
-                style="cursor: pointer;"
-              >
-                <td>{{ tp.product.type }} — {{ tp.product.cassette?.description || '—' }}</td>
-                <td>{{ tp.color }}</td>
-                <td>{{ tp.quantity }}</td>
-                <td>{{ tp.painting ? 'Да' : 'Нет' }}</td>
-                <td>
-                  <template v-if="task.material">
-                    {{ task.material.type }} {{ task.material.color }} {{ task.material.thickness }}
-                  </template>
-                  <span v-else class="text-muted">—</span>
-                </td>
-                <td>
-                  <ul v-if="task.sheets?.length" class="mb-0 ps-3">
-                    <li v-for="sheet in task.sheets" :key="sheet.id">
-                      {{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}
-                    </li>
-                  </ul>
-                  <span v-else class="text-muted">—</span>
-                </td>
-                <td>{{ task.urgency }}</td>
-                <td>{{ task.progress_percent }}%</td>
-                <td>{{ task.status }}</td>
-                <td>
-                  <ul v-if="task.workshops?.length" class="mb-0 ps-3">
-                    <li v-for="ws in task.workshops" :key="ws.workshop_name">
-                      {{ ws.workshop_name }}: {{ ws.status }}
-                    </li>
-                  </ul>
-                  <span v-else class="text-muted">—</span>
-                </td>
-                <td>{{ formatDate(task.created_at) }}</td>
-                <td>{{ formatDate(task.completed_at) }}</td>
-              </tr>
+                <tr
+                  v-for="(tp, i) in task.task_products || []"
+                  :key="`${task.id}-${i}`"
+                  @click="goToTask(task.id)"
+                  style="cursor: pointer;"
+                >
+                  <td>{{ tp.product.type }} — {{ tp.product.cassette?.description || '—' }}</td>
+                  <td>{{ tp.color }}</td>
+                  <td>{{ tp.quantity }}</td>
+                  <td>{{ tp.painting ? 'Да' : 'Нет' }}</td>
+                  <td>
+                    <template v-if="task.material">
+                      {{ task.material.type }} {{ task.material.color }} {{ task.material.thickness }}
+                    </template>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td>
+                    <ul v-if="task.sheets?.length" class="mb-0 ps-3">
+                      <li v-for="sheet in task.sheets" :key="sheet.id">
+                        {{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}
+                      </li>
+                    </ul>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td>{{ task.urgency }}</td>
+                  <td>{{ task.progress_percent }}%</td>
+                  <td>{{ task.status }}</td>
+                  <td>
+                    <ul v-if="task.workshops?.length" class="mb-0 ps-3">
+                      <li v-for="ws in task.workshops" :key="ws.workshop_name">
+                        {{ ws.workshop_name }}: {{ ws.status }}
+                      </li>
+                    </ul>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td>{{ formatDate(task.created_at) }}</td>
+                  <td>{{ formatDate(task.completed_at) }}</td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
