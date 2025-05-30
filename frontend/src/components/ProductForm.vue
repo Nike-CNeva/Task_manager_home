@@ -34,8 +34,7 @@ watch(() => form.product_name, (newPname) => {
     productFieldSet.forEach(field => {
       switch (field.type) {
         case 'select':
-        case 'number':
-          pos[field.name] = '';
+          pos[field.name] = field.options?.[0]?.value || '';
           break;
         case 'checkbox':
           pos[field.name] = false;
