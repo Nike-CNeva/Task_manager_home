@@ -169,12 +169,7 @@ class LinearPanelWrapper(ProductBase, LinearPanelProduct):
 class SheetWrapper(ProductBase, SheetProduct):
     product_type: Literal[ProductTypeEnum.SHEET]
 
-class TaskCreate(BaseModel):
-    """
-    Схема для создания задачи в рамках заявки.
-    """
-    product_name: str = Field(..., description="имя продукта")
-    product_details: Union[
+ProductDetail = Union[
     CassetteWrapper,
     ProfileWrapper,
     KlamerWrapper,
@@ -182,7 +177,13 @@ class TaskCreate(BaseModel):
     ExtensionBracketWrapper,
     LinearPanelWrapper,
     SheetWrapper
-    ] = Field(..., description="Детали продукта")
+]
+class TaskCreate(BaseModel):
+    """
+    Схема для создания задачи в рамках заявки.
+    """
+    product_name: str = Field(..., description="имя продукта")
+    product_details: list[ProductDetail] = Field(..., description="Детали продукта")
     material: MaterialCreateSchema = Field(..., description="материал")
     sheets: Optional[List[SheetsCreate]] = Field(None, description="Листы")
     urgency: UrgencyEnum = Field(..., description="Срочность")
