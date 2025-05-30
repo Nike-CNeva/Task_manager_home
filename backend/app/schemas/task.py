@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
-
+from pydantic import field_validator
 
 class TaskWorkshopRead(BaseModel):
     workshop_name: WorkshopEnum
@@ -99,8 +99,8 @@ class MaterialCreateSchema(BaseModel):
     """
     Схема для создания материала.
     """
-    type: str = Field(..., description="Тип материала")
-    thickness: str = Field(..., description="Толщина материала")
+    material_type: str = Field(..., description="Тип материала")
+    material_thickness: str = Field(..., description="Толщина материала")
     color: str = Field(..., description="Цвет материала")
 
 class SheetsCreate(BaseModel):
@@ -145,48 +145,46 @@ class LinearPanelProduct(CommonProductFields):
 class SheetProduct(CommonProductFields):
     pass
 
-class ProductBase(BaseModel):
-    product_type: ProductTypeEnum
 
-class CassetteWrapper(ProductBase, CassetteProduct):
-    product_type: Literal[ProductTypeEnum.CASSETTE]
-
-class ProfileWrapper(ProductBase, ProfileProduct):
-    product_type: Literal[ProductTypeEnum.PROFILE]
-
-class KlamerWrapper(ProductBase, KlamerProduct):
-    product_type: Literal[ProductTypeEnum.KLAMER]
-
-class BracketWrapper(ProductBase, BracketProduct):
-    product_type: Literal[ProductTypeEnum.BRACKET]
-
-class ExtensionBracketWrapper(ProductBase, ExtensionBracketProduct):
-    product_type: Literal[ProductTypeEnum.EXTENSION_BRACKET]
-
-class LinearPanelWrapper(ProductBase, LinearPanelProduct):
-    product_type: Literal[ProductTypeEnum.LINEAR_PANEL]
-
-class SheetWrapper(ProductBase, SheetProduct):
-    product_type: Literal[ProductTypeEnum.SHEET]
 
 ProductDetail = Union[
-    CassetteWrapper,
-    ProfileWrapper,
-    KlamerWrapper,
-    BracketWrapper,
-    ExtensionBracketWrapper,
-    LinearPanelWrapper,
-    SheetWrapper
+    CassetteProduct,
+    ProfileProduct,
+    KlamerProduct,
+    BracketProduct,
+    ExtensionBracketProduct,
+    LinearPanelProduct,
+    SheetProduct
 ]
 class TaskCreate(BaseModel):
     """
     Схема для создания задачи в рамках заявки.
     """
     product_name: str = Field(..., description="имя продукта")
-    product_details: list[ProductDetail] = Field(..., description="Детали продукта")
+    product_details: list[Any] = Field(..., description="Детали продукта")
     material: MaterialCreateSchema = Field(..., description="материал")
     sheets: Optional[List[SheetsCreate]] = Field(None, description="Листы")
     urgency: UrgencyEnum = Field(..., description="Срочность")
     workshops: List[str] = Field(..., description="Рабочие места")
     employees: List[int] = Field(..., description="Сотрудники")
 
+    @field_validator("product_details", mode="before")
+    @classmethod
+    def detect_product_type(cls, value):
+        def classify_product(obj: dict) -> ProductDetail:
+            if "cassette_type" in obj:
+                return CassetteProduct(**obj)
+            elif "profile_type" in obj:
+                return ProfileProduct(**obj)
+            elif "klamer_type" in obj:
+                return KlamerProduct(**obj)
+            elif "width" in obj and "length" in obj and "has_heel" in obj:
+                return ExtensionBracketProduct(**obj)
+            elif "width" in obj and "length" in obj:
+                return BracketProduct(**obj)
+            elif "panel_width" in obj:
+                return LinearPanelProduct(**obj)
+            else:
+                return SheetProduct(**obj)
+
+        return [classify_product(item) for item in value]
