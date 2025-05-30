@@ -189,4 +189,15 @@ watch(form, () => {
   flex: 1 1 auto;
   min-width: 200px; /* можно менять под нужную ширину */
 }
+.materials-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.materials-fields .field-wrapper {
+  flex: 1 1 auto;
+  min-width: 200px;
+}
 </style>
