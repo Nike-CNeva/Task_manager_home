@@ -12,6 +12,9 @@ const form = reactive({
   urgency: props.product.urgency || '',
   workshops: props.product.workshops || [],
   employees: props.product.employees || [],
+  color: props.product.color || '',
+  quantity: props.product.quantity || '',
+  painting: props.product.painting || False,
 });
 
 const productFields = ref([])
@@ -75,7 +78,7 @@ watch(form, () => {
     product_name: form.product_name,
     product_details: form.product_details,
     // распаковываем material_details
-    ...form.material_details,
+    material: form.material_details,
     sheets: form.sheets,
     urgency: form.urgency,
     workshops: form.workshops,

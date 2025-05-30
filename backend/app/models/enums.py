@@ -61,11 +61,6 @@ class CassetteTypeEnum(str, Enum):
     KOT = "Открытого типа"
     OTHER = "Другое"
 
-class MaterialFormEnum(str, Enum):
-    SHEET = "Лист"
-    COIL = "Рулон"
-    STRIP = "Штрипс"
-
 class MaterialTypeEnum(str, Enum):
     ALUMINIUM = "Алюминий"
     STEEL = "Сталь"

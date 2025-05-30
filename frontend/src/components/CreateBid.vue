@@ -95,9 +95,7 @@ function handleCustomerChange() {
 function addProduct() {
   products.value.push({
     product: '',
-    material: '',
-    material_type: '',
-    thickness: '',
+    material: {},
     product_details: {},
     sheets: [],
     urgency: '',

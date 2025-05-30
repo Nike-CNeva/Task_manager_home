@@ -32,11 +32,15 @@ product_fields_by_type = {
     ],
     ProductTypeEnum.SHEET: [],
 }
-
+fields = [{"name": "quantity", "label": "Количество", "type": "number"},
+          {"name": "color", "label": "Цвет", "type": "text"},
+          {"name": "painting", "label": "Красится?", "type": "checkbox"}]
 async def get_product_fields(product_type: str):
     try:
         enum_type = ProductTypeEnum(product_type)
         field = product_fields_by_type.get(enum_type, [])
+        for item in fields:
+            field.append(item)
         return list(field)  # вернём копию
     except ValueError:
-        return []
+        return list(fields)

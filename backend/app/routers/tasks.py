@@ -106,10 +106,9 @@ async def get_reference_data(db: AsyncSession = Depends(get_db)):
 
     products = [{"name": product.name, "value": product.value} for product in ProductTypeEnum]
     products_data = []
-    quantity = {"name": "quantity", "label": "Количество", "type": "number"}
+
     for product in products:
         fields: List[dict] = await get_product_fields(product["value"])
-        fields.append(quantity)
         products_data.append({
             "name": product["name"],
             "value": product["value"],
@@ -117,10 +116,8 @@ async def get_reference_data(db: AsyncSession = Depends(get_db)):
         })
 
     materials_data = [
-        {"name": "material_form", "label": "Форма материала", "type": "select", "options": [{"value": form.value, "name": form.name} for form in MaterialFormEnum]},
         {"name": "material_type", "label": "Тип материала", "type": "select", "options": [{"value": type.value, "name": type.name} for type in MaterialTypeEnum]},
         {"name": "material_thickness", "label": "Толщина материала", "type": "select", "options": [{"value": thickness.value, "name": thickness.name} for thickness in MaterialThicknessEnum]},
-        {"name": "painting", "label": "Красится", "type": "checkbox"},
         {"name": "color", "label": "Цвет", "type": "text"}
     ]
 

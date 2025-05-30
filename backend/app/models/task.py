@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, DateTime, Enum as SQLEnum, String
+from sqlalchemy import Boolean, ForeignKey, DateTime, Enum as SQLEnum, String
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from backend.app.database.database import Base
 from backend.app.models.enums import UrgencyEnum, StatusEnum
@@ -57,6 +57,7 @@ class TaskProduct(Base):
     task_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
     color: Mapped[str]  # для склада и покраски
+    painting: Mapped[bool] = mapped_column(Boolean, default=False)
     quantity: Mapped[int]
     done_quantity: Mapped[int]
     
