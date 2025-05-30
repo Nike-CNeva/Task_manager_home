@@ -21,7 +21,7 @@ class Task(Base):
     task_products = relationship("TaskProduct", back_populates="task", cascade="all, delete-orphan", single_parent=True)
     material = relationship("Material", back_populates="tasks", cascade="all, delete-orphan", single_parent=True)
     # One-to-Many связь с Comment
-
+    products = relationship("Product", secondary="task_products", back_populates="tasks")
     workshops = relationship("TaskWorkshop", back_populates="task", cascade="all, delete-orphan")
     # Many-to-Many связи
     responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks", lazy="selectin")

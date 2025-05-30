@@ -16,7 +16,7 @@ class Product(Base):
     cassette = relationship("Cassette", back_populates="product", cascade="all, delete-orphan", uselist=False)
     linear_panel = relationship("LinearPanel", back_populates="product", cascade="all, delete-orphan", uselist=False)
     task_products = relationship("TaskProduct", back_populates="product")
-
+    tasks = relationship("Task", secondary="task_products", back_populates="products")
 # Profile Table
 class Profile(Base):
     __tablename__ = "profile"
