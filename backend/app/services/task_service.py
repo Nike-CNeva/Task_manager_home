@@ -114,6 +114,7 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
                 id=bid_obj.customer.id,
                 name=bid_obj.customer.name
             ),
+            status=bid_obj.status,
             tasks=[t for _, t in task_group],
             progress_percent=progress
         )
