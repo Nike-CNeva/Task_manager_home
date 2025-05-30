@@ -27,7 +27,7 @@ class CassetteRead(BaseModel):
 class KlamerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    type: KlamerTypeEnum
+    klamer_type: KlamerTypeEnum
 
 class BracketRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -85,6 +85,7 @@ class TaskRead(BaseModel):
     created_at: datetime
     completed_at: Optional[datetime]
     workshops: Optional[List[TaskWorkshopRead]]
+    product_fields: List[Dict[str, Any]]
 
 class BidRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

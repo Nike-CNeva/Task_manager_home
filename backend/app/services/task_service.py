@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
 from backend.app.models.comment import Comment
 from backend.app.schemas.bid import BidCreate
+from backend.app.schemas.product_fields import get_product_fields
 from backend.app.schemas.task import BidRead, BidRead, CustomerShort, MaterialReadShort, ProductTRead, TaskRead, TaskWorkshopRead
 from backend.app.services.file_service import save_file
 from backend.app.database.database_service import AsyncDatabaseService
@@ -45,6 +46,7 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
     bids_dict = defaultdict(list)
 
     for task in tasks:
+        product_fields = await get_product_fields(task.product.type)
         task_read = TaskRead(
             id=task.id,
             product=ProductTRead.model_validate(task.product, from_attributes=True),
@@ -69,7 +71,8 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
                     workshop_name=tw.workshop.name,
                     status=tw.status
                 ) for tw in task.workshops
-            ]
+            ],
+            product_fields=product_fields
         )
         bids_dict[task.bid.id].append((task.bid, task_read))
 
@@ -91,14 +94,71 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
     return bid_reads
 
 
-async def get_task_by_id(task_id: int, db: AsyncSession) -> TaskRead:
-    """Получает детальную информацию о задаче."""
-    db_service = AsyncDatabaseService(db)
-    task = await db_service.get_by_id(Task, task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Задача не найдена")
-    return TaskRead.model_validate(task)
+async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead]:
+    stmt = (
+        select(Task)
+        .options(
+            selectinload(Task.bid).selectinload(Bid.customer),
+            selectinload(Task.product).selectinload(Product.profile),
+            selectinload(Task.product).selectinload(Product.klamer),
+            selectinload(Task.product).selectinload(Product.bracket),
+            selectinload(Task.product).selectinload(Product.extension_bracket),
+            selectinload(Task.product).selectinload(Product.cassette),
+            selectinload(Task.product).selectinload(Product.linear_panel),
+            selectinload(Task.material),
+            selectinload(Task.sheets),
+            selectinload(Task.workshops).selectinload(TaskWorkshop.workshop),
+        )
+        .where(Task.id == task_id)
+    )
 
+    result = await db.execute(stmt)
+    task = result.scalar_one_or_none()
+
+    if task is None:
+        return None
+    product_fields = await get_product_fields(task.product.type)
+    task_read = TaskRead(
+        id=task.id,
+        product=ProductTRead.model_validate(task.product, from_attributes=True),
+        material=MaterialReadShort.model_validate(task.material, from_attributes=True),
+        quantity=task.quantity,
+        urgency=task.urgency,
+        status=task.status,
+        waste=task.waste,
+        weight=task.weight,
+        sheets=[
+            {
+                "id": s.id,
+                "count": s.quantity,
+                "width": s.width,
+                "length": s.length
+            } for s in task.sheets
+        ] if task.sheets else [],
+        created_at=task.created_at,
+        completed_at=task.completed_at,
+        workshops=[
+            TaskWorkshopRead(
+                workshop_name=tw.workshop.name,
+                status=tw.status
+            ) for tw in task.workshops
+        ],
+        product_fields=product_fields
+    )
+
+    bid_obj = task.bid
+    bid_read = BidRead(
+        id=bid_obj.id,
+        task_number=bid_obj.task_number,
+        manager=bid_obj.manager,
+        customer=CustomerShort(
+            id=bid_obj.customer.id,
+            name=bid_obj.customer.name
+        ),
+        tasks=[task_read]  # список из одной задачи
+    )
+
+    return bid_read
 
 async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[UploadFile], db: AsyncSession):
     try:

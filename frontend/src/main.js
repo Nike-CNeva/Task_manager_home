@@ -1,16 +1,14 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
-import store from './store'; // Vuex
+import store from './store';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap'; // <-- Это важно!
+import 'bootstrap';
 
-// Асинхронный старт приложения
 store.dispatch('checkToken').then(() => {
   router.beforeEach((to, from, next) => {
     if (!store.getters.isAuthChecked) {
-      // Ждём, пока store не проверит токен
       const unwatch = store.watch(
         (state, getters) => getters.isAuthChecked,
         (authChecked) => {
@@ -35,8 +33,14 @@ store.dispatch('checkToken').then(() => {
       next();
     }
   });
+
   const app = createApp(App);
   app.use(store);
   app.use(router);
+
   app.mount('#app');
+
+  // Убираем прелоадер и показываем приложение
+  document.getElementById('preloader').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
 });

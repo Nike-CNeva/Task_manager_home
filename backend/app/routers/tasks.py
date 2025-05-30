@@ -11,6 +11,7 @@ from backend.app.models.workshop import Workshop
 from backend.app.schemas.bid import BidCreate
 from backend.app.schemas.create_bid import ReferenceDataResponse
 from backend.app.schemas.customer import CustomerRead
+from backend.app.schemas.product_fields import get_product_fields
 from backend.app.schemas.task import BidRead
 from backend.app.schemas.user import EmployeeOut
 from backend.app.schemas.workshop import WorkshopRead
@@ -34,7 +35,7 @@ async def get_tasks(db: AsyncSession = Depends(get_db), current_user: User = Dep
 
 @router.get("/task/{task_id}", response_model=BidRead)
 async def get_task(task_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    task = await task_service.get_task_by_id(task_id, db)
+    task = await task_service.get_bid_by_task_id(task_id, db)
     if not task:
         raise HTTPException(status_code=404, detail="Задача не найдена")
     return task
@@ -105,51 +106,10 @@ async def get_reference_data(db: AsyncSession = Depends(get_db)):
 
     products = [{"name": product.name, "value": product.value} for product in ProductTypeEnum]
     products_data = []
-
+    quantity = {"name": "quantity", "label": "Количество", "type": "number"}
     for product in products:
-        if product["value"] == ProductTypeEnum.PROFILE:
-            fields = [
-                {"name": "profile_type", "label": "Тип профиля", "type": "select", "options": [{"value": pt.value, "name": pt.name} for pt in ProfileTypeEnum]},
-                {"name": "length", "label": "Введите длину профиля", "type": "number"},
-                {"name": "quantity", "label": "Введите количество профилей", "type": "number"}
-            ]
-        elif product["value"] == ProductTypeEnum.KLAMER:
-            fields = [
-                {"name": "klamer_type", "label": "Тип клямера", "type": "select", "options": [{"value": kt.value, "name": kt.name} for kt in KlamerTypeEnum]},
-                {"name": "quantity", "label": "Введите количество клямеров", "type": "number"}
-            ]
-        elif product["value"] == ProductTypeEnum.BRACKET:
-            fields = [
-                {"name": "width", "label": "Ширина", "type": "number"},
-                {"name": "length", "label": "Длина", "type": "text"},
-                {"name": "quantity", "label": "Количество кронштейнов", "type": "number"}
-            ]
-        elif product["value"] == ProductTypeEnum.EXTENSION_BRACKET:
-            fields = [
-                {"name": "width", "label": "Ширина", "type": "number"},
-                {"name": "length", "label": "Длина", "type": "text"},
-                {"name": "has_heel", "label": "Наличие пятки", "type": "checkbox"},
-                {"name": "quantity", "label": "Количество удлинителей", "type": "number"}
-            ]
-        elif product["value"] == ProductTypeEnum.CASSETTE:
-            fields = [
-                {"name": "cassette_type", "label": "Тип кассеты", "type": "select", "options": [{"value": ct.value, "name": ct.name} for ct in CassetteTypeEnum]},
-                {"name": "description", "label": "Введите описание", "type": "text"},
-                {"name": "quantity", "label": "Введите количество кассет", "type": "number"}
-            ]
-        elif product["value"] == ProductTypeEnum.LINEAR_PANEL:
-            fields = [
-                {"name": "panel_width", "label": "Поле", "type": "number"},
-                {"name": "groove", "label": "Руст", "type": "number"},
-                {"name": "length", "label": "Длина", "type": "number"},
-                {"name": "has_endcap", "label": "Наличие торцевания", "type": "checkbox"},
-                {"name": "quantity", "label": "Количество панелей", "type": "number"}
-            ]
-        elif product["value"] == ProductTypeEnum.SHEET:
-            fields = []
-        else:
-            fields = [{"name": "quantity", "label": "Количество", "type": "number"}]
-
+        fields: List[dict] = await get_product_fields(product["value"])
+        fields.append(quantity)
         products_data.append({
             "name": product["name"],
             "value": product["value"],
