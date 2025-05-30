@@ -94,9 +94,6 @@ function emitUpdate() {
     urgency: form.urgency,
     workshops: form.workshops,
     employees: form.employees,
-    color: form.color,
-    quantity: form.quantity,
-    painting: form.painting,
   });
 }
 

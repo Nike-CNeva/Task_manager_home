@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
 
@@ -95,19 +95,97 @@ class BidRead(BaseModel):
     customer: CustomerShort
     tasks: List[TaskRead]
 
+class MaterialCreateSchema(BaseModel):
+    """
+    Схема для создания материала.
+    """
+    type: str = Field(..., description="Тип материала")
+    thickness: str = Field(..., description="Толщина материала")
+    color: str = Field(..., description="Цвет материала")
 
+class SheetsCreate(BaseModel):
+    """
+    Схема для создания информации о листах для задачи.
+    """
+    width: int = Field(..., description="Ширина листа")
+    length: int = Field(..., description="Длина листа")
+    quantity: int = Field(..., description="Количество листов")
+
+class CommonProductFields(BaseModel):
+    quantity: int = Field(..., description="Количество")
+    color: str = Field(..., description="Цвет")
+    painting: bool = Field(..., description="Покраска")
+
+class CassetteProduct(CommonProductFields):
+    cassette_type: str
+    description: str
+
+class ProfileProduct(CommonProductFields):
+    profile_type: str
+    length: float
+
+class KlamerProduct(CommonProductFields):
+    klamer_type: str
+
+class BracketProduct(CommonProductFields):
+    width: float
+    length: str
+
+class ExtensionBracketProduct(CommonProductFields):
+    width: float
+    length: str
+    has_heel: bool
+
+class LinearPanelProduct(CommonProductFields):
+    panel_width: float
+    groove: float
+    length: float
+    has_endcap: bool
+
+class SheetProduct(CommonProductFields):
+    pass
+
+class ProductBase(BaseModel):
+    product_type: ProductTypeEnum
+
+class CassetteWrapper(ProductBase, CassetteProduct):
+    product_type: Literal[ProductTypeEnum.CASSETTE]
+
+class ProfileWrapper(ProductBase, ProfileProduct):
+    product_type: Literal[ProductTypeEnum.PROFILE]
+
+class KlamerWrapper(ProductBase, KlamerProduct):
+    product_type: Literal[ProductTypeEnum.KLAMER]
+
+class BracketWrapper(ProductBase, BracketProduct):
+    product_type: Literal[ProductTypeEnum.BRACKET]
+
+class ExtensionBracketWrapper(ProductBase, ExtensionBracketProduct):
+    product_type: Literal[ProductTypeEnum.EXTENSION_BRACKET]
+
+class LinearPanelWrapper(ProductBase, LinearPanelProduct):
+    product_type: Literal[ProductTypeEnum.LINEAR_PANEL]
+
+class SheetWrapper(ProductBase, SheetProduct):
+    product_type: Literal[ProductTypeEnum.SHEET]
 
 class TaskCreate(BaseModel):
     """
     Схема для создания задачи в рамках заявки.
     """
     product_name: str = Field(..., description="имя продукта")
-    product_details: Dict[str, Any] = Field(..., description="Детали продукта")
-    material_type: MaterialTypeEnum = Field(..., description="Тип материала")
-    color: str = Field(..., description="Цвет материала")
-    painting: bool = Field(..., description="Нужна ли покраска")
-    material_thickness: MaterialThicknessEnum = Field(..., description="Толщина материала")
-    sheets: Optional[List[Dict[str, int]]] = Field(None, description="Листы")
+    product_details: Union[
+    CassetteWrapper,
+    ProfileWrapper,
+    KlamerWrapper,
+    BracketWrapper,
+    ExtensionBracketWrapper,
+    LinearPanelWrapper,
+    SheetWrapper
+    ] = Field(..., description="Детали продукта")
+    material: MaterialCreateSchema = Field(..., description="материал")
+    sheets: Optional[List[SheetsCreate]] = Field(None, description="Листы")
     urgency: UrgencyEnum = Field(..., description="Срочность")
     workshops: List[str] = Field(..., description="Рабочие места")
     employees: List[int] = Field(..., description="Сотрудники")
+

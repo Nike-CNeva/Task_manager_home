@@ -8,7 +8,7 @@ from backend.app.models.bid import Bid, Customer
 from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum
 from backend.app.models.material import Material, Sheets
 from backend.app.models.product import Bracket, Cassette, ExtensionBracket, Klamer, LinearPanel, Product, Profile
-from backend.app.models.task import Task, TaskWorkshop
+from backend.app.models.task import Task, TaskProduct, TaskWorkshop
 from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
 from backend.app.models.comment import Comment
@@ -162,151 +162,129 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
 
 async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[UploadFile], db: AsyncSession):
     try:
-        all_user_ids = set()
-        for product_data in bid_info.products:
-            if product_data.employees:
-                all_user_ids.update(product_data.employees)
-
-        # Загружаем из базы всех нужных пользователей одним запросом
+        # Сбор всех ID сотрудников
+        all_user_ids = {uid for p in bid_info.products for uid in p.employees or []}
         result = await db.execute(select(User).where(User.id.in_(all_user_ids)))
         all_users = {user.id: user for user in result.scalars()}
 
-        # 1. Создаем заявку
+        # Создание заявки
         new_bid = Bid(
             task_number=bid_info.task_number,
             customer_id=bid_info.customer,
             manager=bid_info.manager,
+            status=StatusEnum.NEW,
         )
         db.add(new_bid)
-        await db.flush()  # получаем new_bid.id
+        await db.flush()
 
-        # 2. Комментарии
+        # Комментарий
         if bid_info.comment:
-            new_comment = Comment(
+            db.add(Comment(
                 bid_id=new_bid.id,
                 user_id=user.id,
                 content=bid_info.comment,
-                created_at=datetime.datetime.utcnow(),
-            )
-            db.add(new_comment)
+            ))
 
-        for product_data in bid_info.products:
-            new_product = Product(
-                type=product_data.product_name,
+        for product_entry in bid_info.products:
+            # Создание материала (один на весь продукт)
+            material = Material(
+                type=product_entry.material["material_type"],
+                thickness=product_entry.material["material_thickness"],
+                color=product_entry.material.get("color", "")
             )
-            db.add(new_product)
+            db.add(material)
             await db.flush()
 
-            # 3. Продукты
-            if product_data.product_name == ProductTypeEnum.PROFILE.value:
-                new_profile = Profile(
-                    product_id = new_product.id,
-                    profile_type=product_data.product_details["profile_type"],
-                    length = product_data.product_details["length"],
-                )
-                db.add(new_profile)
-            elif product_data.product_name == ProductTypeEnum.KLAMER.value:
-                new_klamer = Klamer(
-                    product_id = new_product.id,
-                    type=product_data.product_details["klamer_type"],
-                )
-                db.add(new_klamer)
-            elif product_data.product_name == ProductTypeEnum.BRACKET.value:
-                new_bracket = Bracket(
-                    product_id = new_product.id,
-                    width = product_data.product_details["width"],
-                    length = product_data.product_details["length"],
-                )
-                db.add(new_bracket)
-            elif product_data.product_name == ProductTypeEnum.EXTENSION_BRACKET.value:
-                new_extension_bracket = ExtensionBracket(
-                    product_id = new_product.id,
-                    width = product_data.product_details["width"],
-                    length = product_data.product_details["length"],
-                    heel = product_data.product_details["has_heel"],
-                )
-                db.add(new_extension_bracket)
-            elif product_data.product_name == ProductTypeEnum.CASSETTE.value:
-                new_kassete = Cassette(
-                    product_id = new_product.id,
-                    cassette_type=product_data.product_details["cassette_type"],
-                    description=product_data.product_details["description"],
-                )
-                db.add(new_kassete)
-            elif product_data.product_name == ProductTypeEnum.LINEAR_PANEL.value:
-                new_linear_panel = LinearPanel(
-                    product_id = new_product.id,
-                    field = product_data.product_details["field"],
-                    rust = product_data.product_details["rust"],
-                    length = product_data.product_details["length"],
-                    butt_end=product_data.product_details["butt_end"],
-                )
-                db.add(new_linear_panel)
-
-            # 4. Material
-            new_material = Material(
-                form=product_data.material_form,
-                type=product_data.material_type,
-                thickness=product_data.material_thickness,
-                painting=product_data.painting,
-                color=product_data.color,
-            )
-            db.add(new_material)
-            await db.flush()
-
-            # 5. Task
-            new_task = Task(
+            # Создание задачи
+            task = Task(
                 bid_id=new_bid.id,
-                product_id=new_product.id,
-                material_id=new_material.id,
-                quantity=product_data.product_details["quantity"],
-                urgency=product_data.urgency,
-                status=StatusEnum("Новая"),
-                created_at=datetime.datetime.utcnow(),
+                material_id=material.id,
+                urgency=product_entry.urgency,
+                status=StatusEnum.NEW,
             )
-            db.add(new_task)
+            db.add(task)
             await db.flush()
 
-            for sheet in product_data.sheets or []:
-                new_sheet = Sheets(
-                    task_id=new_task.id,
+            # Листы
+            for sheet in product_entry.sheets:
+                db.add(Sheets(
+                    task_id=task.id,
                     width=sheet["width"],
                     length=sheet["length"],
-                    quantity=sheet["quantity"],
-                )
-                db.add(new_sheet)
+                    quantity=sheet["quantity"]
+                ))
 
-            workshop_names = product_data.workshops or []  # уже строки
-
-            result = await db.execute(
-                select(Workshop).where(Workshop.name.in_(workshop_names))
-            )
-            workshops = result.scalars().all()
-
-            # Создаем словарь по строковому имени цеха (т.к. Workshop.name — Enum, но хранится как строка)
-            workshops_dict = {w.name.value: w.id for w in workshops}
-
-            for ws_name in workshop_names:
+            # Привязка к цехам
+            result = await db.execute(select(Workshop).where(Workshop.name.in_(product_entry.workshops)))
+            workshops_dict = {w.name.value: w.id for w in result.scalars()}
+            for ws_name in product_entry.workshops:
                 ws_id = workshops_dict.get(ws_name)
                 if ws_id:
-                    new_task_workshop = TaskWorkshop(
-                        task_id=new_task.id,
-                        workshop_id=ws_id,
-                        status=StatusEnum("Новая"),
-                    )
-                    db.add(new_task_workshop)
-                else:
-                    print(f"Workshop not found for {ws_name}")
-            await db.flush()
-            # 7. Employees
-            await db.refresh(new_task, attribute_names=["responsible_users"])
-            for user_id in product_data.employees or []:
-                employee: User | None = all_users.get(user_id)
-                if employee:
-                    new_task.responsible_users.append(employee)
+                    db.add(TaskWorkshop(task_id=task.id, workshop_id=ws_id, status=StatusEnum.NEW))
 
+            # Привязка ответственных
+            await db.refresh(task, attribute_names=["responsible_users"])
+            for user_id in product_entry.employees:
+                if employee := all_users.get(user_id):
+                    task.responsible_users.append(employee)
 
-        # 8. Files
+            # Продукты внутри задачи
+            for prod in product_entry.product_details:
+                # Создаем продукт
+                product = Product(type=product_entry.product_name)
+                db.add(product)
+                await db.flush()
+
+                if product_entry.product_name == ProductTypeEnum.PROFILE:
+                    db.add(Profile(
+                        product_id=product.id,
+                        profile_type=prod["profile_type"],
+                        length=prod["length"],
+                    ))
+                elif product_entry.product_name == ProductTypeEnum.KLAMER:
+                    db.add(Klamer(
+                        product_id=product.id,
+                        klamer_type=prod["klamer_type"]
+                    ))
+                elif product_entry.product_name == ProductTypeEnum.BRACKET:
+                    db.add(Bracket(
+                        product_id=product.id,
+                        width=prod["width"],
+                        length=prod["length"]
+                    ))
+                elif product_entry.product_name == ProductTypeEnum.EXTENSION_BRACKET:
+                    db.add(ExtensionBracket(
+                        product_id=product.id,
+                        width=prod["width"],
+                        length=prod["length"],
+                        heel=prod["has_heel"]
+                    ))
+                elif product_entry.product_name == ProductTypeEnum.CASSETTE:
+                    db.add(Cassette(
+                        product_id=product.id,
+                        cassette_type=prod["cassette_type"],
+                        description=prod["description"]
+                    ))
+                elif product_entry.product_name == ProductTypeEnum.LINEAR_PANEL:
+                    db.add(LinearPanel(
+                        product_id=product.id,
+                        field=prod["field"],
+                        rust=prod["rust"],
+                        length=prod["length"],
+                        butt_end=prod["butt_end"]
+                    ))
+
+                # Привязка продукта к задаче с параметрами
+                db.add(TaskProduct(
+                    task_id=task.id,
+                    product_id=product.id,
+                    color=prod["color"],
+                    painting=prod["painting"],
+                    quantity=prod["quantity"],
+                    done_quantity=0,
+                ))
+
+        # Загрузка файлов
         for file in files:
             await save_file(new_bid.id, file, db)
 
@@ -317,11 +295,9 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
     except SQLAlchemyError as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка при создании заявки: {str(e)}")
-
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Непредвиденная ошибка: {str(e)}")
-
 
 async def get_products(db: AsyncSession) -> List[Dict[str, Any]]:
     """Получает список продуктов."""
