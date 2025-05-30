@@ -29,27 +29,23 @@ watch(() => form.product_name, (newPname) => {
   const productFieldSet = selectedProduct?.fields || [];
   productFields.value = productFieldSet;
 
-const createEmptyPosition = () => {
-  const pos = {};
-  productFieldSet.forEach(field => {
-    switch (field.type) {
-      case 'select': {
-        const selectOptions = field.options || [];
-        pos[field.name] = selectOptions.length > 0 ? selectOptions[0].value : '';
-        break;
+  const createEmptyPosition = () => {
+    const pos = {};
+    productFieldSet.forEach(field => {
+      switch (field.type) {
+        case 'select':
+        case 'number':
+          pos[field.name] = '';
+          break;
+        case 'checkbox':
+          pos[field.name] = false;
+          break;
+        default:
+          pos[field.name] = '';
       }
-      case 'number':
-        pos[field.name] = '';
-        break;
-      case 'checkbox':
-        pos[field.name] = false;
-        break;
-      default:
-        pos[field.name] = '';
-    }
-  });
-  return pos;
-};
+    });
+    return pos;
+  };
 
   if (!Array.isArray(form.product_details) || form.product_details.length === 0) {
     form.product_details = [createEmptyPosition()];
@@ -75,7 +71,11 @@ const createEmptyPosition = () => {
 }, { immediate: true });
 
 function addPosition() {
-  form.product_details.push(createEmptyPosition());
+  const pos = {};
+  productFields.value.forEach(field => {
+    pos[field.name] = field.type === 'checkbox' ? false : '';
+  });
+  form.product_details.push(pos);
   emitUpdate();
 }
 
