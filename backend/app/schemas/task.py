@@ -101,7 +101,7 @@ class MaterialCreateSchema(BaseModel):
     """
     material_type: str = Field(..., description="Тип материала")
     material_thickness: str = Field(..., description="Толщина материала")
-    color: str = Field(..., description="Цвет материала")
+    color: Optional[str] = Field(None, description="Цвет материала")
 
 class SheetsCreate(BaseModel):
     """
