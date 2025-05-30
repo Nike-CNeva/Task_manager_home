@@ -177,3 +177,16 @@ watch(form, () => {
     </div>
   </div>
 </template>
+<style scoped>
+.product-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem; /* расстояние между полями */
+  margin-top: 1rem;
+}
+
+.field-wrapper {
+  flex: 1 1 auto;
+  min-width: 200px; /* можно менять под нужную ширину */
+}
+</style>
