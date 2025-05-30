@@ -188,9 +188,9 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
         for product_entry in bid_info.products:
             # Создание материала (один на весь продукт)
             material = Material(
-                type=product_entry.material["material_type"],
-                thickness=product_entry.material["material_thickness"],
-                color=product_entry.material.get("color", "")
+                type=product_entry.material.material_type,
+                thickness=product_entry.material.material_thickness,
+                color=product_entry.material.color
             )
             db.add(material)
             await db.flush()
