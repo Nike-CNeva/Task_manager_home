@@ -200,4 +200,68 @@ watch(form, () => {
   flex: 1 1 auto;
   min-width: 200px;
 }
+.product-container select,
+.product-container input,
+.product-container button {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.product-container select:focus,
+.product-container input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+  outline: none;
+}
+
+button {
+  width: auto;
+  margin-top: 0.5rem;
+  margin-right: 0.5rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+.product-fields,
+.materials-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.field-wrapper {
+  flex: 1 1 auto;
+  min-width: 200px;
+}
+
+.sheet-fields {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.assignment-container {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px dashed #aaa;
+  border-radius: 0.5rem;
+  background-color: #f8f9fa;
+}
 </style>
