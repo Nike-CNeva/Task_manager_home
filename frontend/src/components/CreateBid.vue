@@ -144,5 +144,77 @@ async function submitForm() {
 </script>
 
 <style scoped>
-/* Стили по желанию */
+h2 {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.form-row input,
+.form-row select {
+  flex: 1 1 200px;
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+textarea {
+  padding: 0.5rem;
+  font-size: 1rem;
+  resize: vertical;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+button {
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  background-color: #2d8cf0;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #1a73e8;
+}
+
+label {
+  font-weight: bold;
+}
+
+input[type="file"] {
+  margin-top: 0.5rem;
+}
+
+.product-row {
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  background-color: #fafafa;
+}
+
+/* Немного воздуха внизу */
+form > button[type="submit"] {
+  align-self: flex-start;
+  margin-top: 1rem;
+}
 </style>
+
