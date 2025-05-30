@@ -12,6 +12,8 @@ class Material(Base):
     thickness: Mapped[MaterialThicknessEnum] = mapped_column(SQLEnum(MaterialThicknessEnum), nullable=False)
     color: Mapped[str] = mapped_column(String(50), nullable=True)
     painting: Mapped[bool] = mapped_column(Boolean, default=False)
+    waste: Mapped[str] = mapped_column(String(50), nullable=True)
+    weight: Mapped[str] = mapped_column(String(50), nullable=True)
     tasks = relationship("Task", back_populates="material")
 
 # Additional Tables
