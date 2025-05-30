@@ -6,7 +6,7 @@ const emit = defineEmits(['update', 'remove']);
 
 const form = reactive({
   product_name: props.product.value || '',
-  product_details: props.product.fields || {},
+  product_details: props.product.fields || [],
   material: props.product.materials || {},
   sheets: props.product.sheets || [],
   urgency: props.product.urgency || '',
@@ -24,30 +24,35 @@ const showSheets = ref(false);
 watch(() => form.product_name, (newPname) => {
   const selectedProduct = props.referenceData.products.find(p => p.value === newPname);
 
+  // Показывать ли листы (showSheets)
   showSheets.value = !!selectedProduct && ['Кассеты', 'Листы'].includes(selectedProduct.value);
 
   const productFieldSet = selectedProduct?.fields || [];
   productFields.value = productFieldSet;
 
-  // 🧩 Генерация начального состояния
-  const initialDetails = {};
-  productFieldSet.forEach(field => {
-    switch (field.type) {
-      case 'select':
-        initialDetails[field.name] = '';
-        break;
-      case 'number':
-        initialDetails[field.name] = '';
-        break;
-      case 'checkbox':
-        initialDetails[field.name] = false;
-        break;
-      default:
-        initialDetails[field.name] = '';
-    }
-  });
+  // Функция создания пустой позиции с инициализацией по типам полей
+  const createEmptyPosition = () => {
+    const pos = {};
+    productFieldSet.forEach(field => {
+      switch (field.type) {
+        case 'select':
+        case 'number':
+          pos[field.name] = '';
+          break;
+        case 'checkbox':
+          pos[field.name] = false;
+          break;
+        default:
+          pos[field.name] = '';
+      }
+    });
+    return pos;
+  };
 
-  form.product_details = initialDetails;
+  // Если product_details не массив или пустой — создаём массив с одной позицией
+  if (!Array.isArray(form.product_details) || form.product_details.length === 0) {
+    form.product_details = [createEmptyPosition()];
+  }
 
   // Инициализация material_details с пустыми значениями по всем полям материалов
   materialFields.value = props.referenceData.materials || [];
@@ -66,10 +71,25 @@ watch(() => form.product_name, (newPname) => {
   });
   form.material_details = initialMaterialDetails;
 
+  // Эмитим обновлённую форму
   emit('update', { ...form });
+
 }, { immediate: true });
 
+function addPosition() {
+  const pos = {};
+  productFields.value.forEach(field => {
+    if (field.type === 'checkbox') pos[field.name] = false;
+    else pos[field.name] = '';
+  });
+  form.product_details.push(pos);
+  emitUpdate();
+}
 
+function removePosition(index) {
+  form.product_details.splice(index, 1);
+  emitUpdate();
+}
 
 // Следим за всем объектом формы и эмитим обновления
 watch(form, () => {
@@ -99,30 +119,31 @@ watch(form, () => {
       </option>
     </select>
 
-    <div v-if="productFields.length" class="product-fields">
-      <div v-for="field in productFields" :key="field.name" class="field-wrapper">
-        <template v-if="field.type === 'select'">
-          <select v-model="form.product_details[field.name]" :name="field.name">
-            <option value="">{{ field.label }}</option>
-            <option v-for="opt in field.options" :key="opt.name" :value="opt.name">
-              {{ opt.value }}
-            </option>
-          </select>
-        </template>
+    <div v-for="(position, i) in form.product_details" :key="i" class="position-block">
+  <div v-for="field in productFields" :key="field.name" class="field-wrapper">
+    <template v-if="field.type === 'select'">
+      <select v-model="form.product_details[i][field.name]">
+        <option value="">{{ field.label }}</option>
+        <option v-for="opt in field.options" :key="opt.name" :value="opt.name">
+          {{ opt.value }}
+        </option>
+      </select>
+    </template>
+    <template v-else-if="field.type === 'checkbox'">
+      <label>
+        <input type="checkbox" v-model="form.product_details[i][field.name]" />
+        {{ field.label }}
+      </label>
+    </template>
+    <template v-else>
+      <input :type="field.type" :placeholder="field.label" v-model="form.product_details[i][field.name]" />
+    </template>
+  </div>
 
-        <template v-else-if="field.type === 'checkbox'">
-          <label>
-            <input type="checkbox" :name="field.name" v-model="form.product_details[field.name]" />
-            {{ field.label }}
-          </label>
-        </template>
+  <button type="button" @click="removePosition(i)" v-if="form.product_details.length > 1">Удалить позицию</button>
+</div>
 
-        <template v-else>
-          <input :type="field.type" :name="field.name" :placeholder="field.label" v-model="form.product_details[field.name]" />
-        </template>
-      </div>
-    </div>
-
+<button type="button" @click="addPosition">Добавить позицию</button>
     <div v-if="materialFields.length" class="materials-fields">
       <div v-for="field in materialFields" :key="field.name" class="field-wrapper">
         <template v-if="field.type === 'select'">
