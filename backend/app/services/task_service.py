@@ -27,12 +27,24 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
         select(Task)
         .options(
             selectinload(Task.bid).selectinload(Bid.customer),
-            selectinload(Task.product).selectinload(Product.profile),
-            selectinload(Task.product).selectinload(Product.klamer),
-            selectinload(Task.product).selectinload(Product.bracket),
-            selectinload(Task.product).selectinload(Product.extension_bracket),
-            selectinload(Task.product).selectinload(Product.cassette),
-            selectinload(Task.product).selectinload(Product.linear_panel),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.profile),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.klamer),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.bracket),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.extension_bracket),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.cassette),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.linear_panel),
             selectinload(Task.material),
             selectinload(Task.sheets),
             selectinload(Task.workshops).selectinload(TaskWorkshop.workshop),
@@ -42,20 +54,26 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
 
     result = await db.execute(stmt)
     tasks = result.scalars().unique().all()
-
     bids_dict = defaultdict(list)
 
     for task in tasks:
-        product_fields = await get_product_fields(task.product.type)
+        task_products = []
+        for tp in task.task_products:
+            product_fields = await get_product_fields(tp.product.type)
+            task_products.append({
+                "product": ProductTRead.model_validate(tp.product, from_attributes=True),
+                "color": tp.color,
+                "painting": tp.painting,
+                "quantity": tp.quantity,
+                "done_quantity": tp.done_quantity,
+                "product_fields": product_fields,
+            })
+
         task_read = TaskRead(
             id=task.id,
-            product=ProductTRead.model_validate(task.product, from_attributes=True),
             material=MaterialReadShort.model_validate(task.material, from_attributes=True),
-            quantity=task.quantity,
             urgency=task.urgency,
             status=task.status,
-            waste=task.waste,
-            weight=task.weight,
             sheets=[
                 {
                     "id": s.id,
@@ -69,11 +87,16 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
             workshops=[
                 TaskWorkshopRead(
                     workshop_name=tw.workshop.name,
-                    status=tw.status
+                    status=tw.status,
+                    progress_percent=tw.progress_percent
                 ) for tw in task.workshops
             ],
-            product_fields=product_fields
+            total_quantity=task.total_quantity,
+            done_quantity=task.done_quantity,
+            progress_percent=task.progress_percent,
+            task_products=task_products,
         )
+
         bids_dict[task.bid.id].append((task.bid, task_read))
 
     bid_reads = []
@@ -87,7 +110,8 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
                 id=bid_obj.customer.id,
                 name=bid_obj.customer.name
             ),
-            tasks=[t for _, t in task_group]
+            tasks=[t for _, t in task_group],
+            progress_percent=bid_obj.progress_percent
         )
         bid_reads.append(bid_read)
 

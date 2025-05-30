@@ -67,24 +67,31 @@ class MaterialReadShort(BaseModel):
     type: MaterialTypeEnum
     color: str
     thickness: MaterialThicknessEnum
+
+class TaskProductRead(BaseModel):
+    product: ProductTRead
+    color: str
     painting: bool
+    quantity: int
+    done_quantity: int
+    product_fields: List[Dict[str, Any]]
+
 
 class TaskRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    product: ProductTRead
     material: MaterialReadShort
-    quantity: int
     urgency: UrgencyEnum
     status: StatusEnum
-    waste: Optional[str]
-    weight: Optional[str]
     sheets: Optional[List[Dict[str, int]]]
     created_at: datetime
     completed_at: Optional[datetime]
     workshops: Optional[List[TaskWorkshopRead]]
-    product_fields: List[Dict[str, Any]]
+    task_products: List[TaskProductRead]
+    total_quantity: int
+    done_quantity: int
+    progress_percent: float
 
 class BidRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -93,6 +100,7 @@ class BidRead(BaseModel):
     task_number: int
     manager: ManagerEnum
     customer: CustomerShort
+    status: StatusEnum
     tasks: List[TaskRead]
 
 class MaterialCreateSchema(BaseModel):
