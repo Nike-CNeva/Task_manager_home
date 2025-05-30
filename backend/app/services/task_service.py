@@ -238,49 +238,49 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
                 if product_entry.product_name == ProductTypeEnum.PROFILE:
                     db.add(Profile(
                         product_id=product.id,
-                        profile_type=prod["profile_type"],
-                        length=prod["length"],
+                        profile_type=prod.profile_type,
+                        length=prod.length,
                     ))
                 elif product_entry.product_name == ProductTypeEnum.KLAMER:
                     db.add(Klamer(
                         product_id=product.id,
-                        klamer_type=prod["klamer_type"]
+                        klamer_type=prod.klamer_type
                     ))
                 elif product_entry.product_name == ProductTypeEnum.BRACKET:
                     db.add(Bracket(
                         product_id=product.id,
-                        width=prod["width"],
-                        length=prod["length"]
+                        width=prod.width,
+                        length=prod.length
                     ))
                 elif product_entry.product_name == ProductTypeEnum.EXTENSION_BRACKET:
                     db.add(ExtensionBracket(
                         product_id=product.id,
-                        width=prod["width"],
-                        length=prod["length"],
-                        heel=prod["has_heel"]
+                        width=prod.width,
+                        length=prod.length,
+                        heel=prod.has_heel
                     ))
                 elif product_entry.product_name == ProductTypeEnum.CASSETTE:
                     db.add(Cassette(
                         product_id=product.id,
-                        cassette_type=prod["cassette_type"],
-                        description=prod["description"]
+                        cassette_type=prod.cassette_type,
+                        description=prod.description
                     ))
                 elif product_entry.product_name == ProductTypeEnum.LINEAR_PANEL:
                     db.add(LinearPanel(
                         product_id=product.id,
-                        field=prod["field"],
-                        rust=prod["rust"],
-                        length=prod["length"],
-                        butt_end=prod["butt_end"]
+                        field=prod.field,
+                        rust=prod.rust,
+                        length=prod.length,
+                        butt_end=prod.butt_end
                     ))
 
                 # Привязка продукта к задаче с параметрами
                 db.add(TaskProduct(
                     task_id=task.id,
                     product_id=product.id,
-                    color=prod["color"],
-                    painting=prod["painting"],
-                    quantity=prod["quantity"],
+                    color=prod.color,
+                    painting=prod.painting,
+                    quantity=prod.quantity,
                     done_quantity=0,
                 ))
 
