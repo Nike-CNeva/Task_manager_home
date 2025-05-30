@@ -15,16 +15,12 @@ class Task(Base):
     status: Mapped[StatusEnum] = mapped_column(SQLEnum(StatusEnum), default="NEW")
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
-    # One-to-Many связи
     sheets = relationship("Sheets", back_populates="task", cascade="all, delete-orphan")
     bid = relationship("Bid", back_populates="tasks")
+    material = relationship("Material", back_populates="tasks")
     task_products = relationship("TaskProduct", back_populates="task", cascade="all, delete-orphan", single_parent=True)
-    material = relationship("Material", back_populates="tasks", cascade="all, delete-orphan", single_parent=True)
-    # One-to-Many связь с Comment
-    products = relationship("Product", secondary="task_products", back_populates="tasks")
     workshops = relationship("TaskWorkshop", back_populates="task", cascade="all, delete-orphan")
-    # Many-to-Many связи
-    responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks", lazy="selectin")
+    responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks")
 
     @property
     def total_quantity(self):
@@ -56,11 +52,11 @@ class TaskProduct(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
-    color: Mapped[str]  # для склада и покраски
+
+    color: Mapped[str]
     painting: Mapped[bool] = mapped_column(Boolean, default=False)
     quantity: Mapped[int]
-    done_quantity: Mapped[int]
-    
+    done_quantity: Mapped[int] = mapped_column(default=0)
+
     task = relationship("Task", back_populates="task_products")
     product = relationship("Product", back_populates="task_products")
-
