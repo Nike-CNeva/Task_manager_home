@@ -43,6 +43,8 @@ watch(() => form.product_name, (newPname) => {
           pos[field.name] = '';
       }
     });
+    pos.color = props.product?.color || '';
+    pos.painting = props.product?.painting || '';
     return pos;
   };
 
@@ -74,6 +76,8 @@ function addPosition() {
   productFields.value.forEach(field => {
     pos[field.name] = field.type === 'checkbox' ? false : '';
   });
+  pos.color = '';
+  pos.painting = '';
   form.product_details.push(pos);
   emitUpdate();
 }
