@@ -70,7 +70,7 @@ class MaterialReadShort(BaseModel):
 
 class TaskProductRead(BaseModel):
     product: ProductTRead
-    color: str
+    color: Optional[str]
     painting: bool
     quantity: int
     done_quantity: int
