@@ -60,7 +60,7 @@ class TaskProduct(Base):
     task_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
 
-    color: Mapped[str]
+    color: Mapped[str] = mapped_column(String(50), nullable=True)
     painting: Mapped[bool] = mapped_column(Boolean, default=False)
     quantity: Mapped[int]
     done_quantity: Mapped[int] = mapped_column(default=0)

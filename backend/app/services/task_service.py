@@ -307,8 +307,8 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
                 db.add(TaskProduct(
                     task_id=task.id,
                     product_id=product.id,
-                    color=prod.color,
-                    painting=prod.painting,
+                    color=prod.color if prod.color else None,
+                    painting=bool(prod.painting) if prod.painting is not None else False,
                     quantity=prod.quantity,
                     done_quantity=0,
                 ))
