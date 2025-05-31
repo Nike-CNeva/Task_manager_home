@@ -121,8 +121,8 @@ class SheetsCreate(BaseModel):
 
 class CommonProductFields(BaseModel):
     quantity: int = Field(..., description="Количество")
-    color: str = Field(..., description="Цвет")
-    painting: bool = Field(..., description="Покраска")
+    color: Optional[str] = Field(None, description="Цвет")
+    painting: Optional[bool] = Field(False, description="Покраска")
 
 class CassetteProduct(CommonProductFields):
     cassette_type: str

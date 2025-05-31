@@ -62,8 +62,7 @@ watch(() => form.product_name, (newPname) => {
     }
   });
   form.material_details = initialMaterialDetails;
-  console.log('Selected fields:', productFieldSet);
-  console.log('Incoming fields from props.product:', props.product?.fields);
+
   emit('update', { ...form });
 }, { immediate: true });
 
