@@ -12,9 +12,6 @@ const form = reactive({
   urgency: props.product?.urgency || '',
   workshops: Array.isArray(props.product?.workshops) ? props.product.workshops : [],
   employees: Array.isArray(props.product?.employees) ? props.product.employees : [],
-  color: props.product?.color || '',
-  quantity: props.product?.quantity || '',
-  painting: props.product?.painting || '',
 });
 
 const productFields = ref([]);
@@ -43,8 +40,6 @@ watch(() => form.product_name, (newPname) => {
           pos[field.name] = '';
       }
     });
-    pos.color = props.product?.color || '';
-    pos.painting = props.product?.painting || '';
     return pos;
   };
 
@@ -76,8 +71,6 @@ function addPosition() {
   productFields.value.forEach(field => {
     pos[field.name] = field.type === 'checkbox' ? false : '';
   });
-  pos.color = '';
-  pos.painting = '';
   form.product_details.push(pos);
   emitUpdate();
 }
