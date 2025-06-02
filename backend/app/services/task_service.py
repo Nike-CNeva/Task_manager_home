@@ -23,20 +23,16 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 def filter_tasks_by_user(tasks: List[Task], current_user: User) -> List[Task]:
-    seen_bid_ids: Set[int] = set()
     filtered_tasks = []
+    user_workshop_ids = {ws.id for ws in current_user.workshops}
 
     for task in tasks:
-        bid_id = task.bid.id
-        user_responsible = task.bid.responsible_id == current_user.id
-        user_workshop_ids = {tw.workshop_id for tw in task.workshops}
-        user_has_workshop = current_user.workshop_id in user_workshop_ids if current_user.workshop_id else False
+        is_responsible = any(user.id == current_user.id for user in task.responsible_users)
+        task_workshop_ids = {tw.workshop.id for tw in task.workshops}
 
-        if bid_id in seen_bid_ids:
-            continue
+        has_common_workshop = not user_workshop_ids.isdisjoint(task_workshop_ids)
 
-        if user_responsible or user_has_workshop:
-            seen_bid_ids.add(bid_id)
+        if is_responsible or has_common_workshop:
             filtered_tasks.append(task)
 
     return filtered_tasks
