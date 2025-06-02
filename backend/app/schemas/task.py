@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
-
+from pydantic import field_validator
 
 class TaskWorkshopRead(BaseModel):
     workshop_name: WorkshopEnum
@@ -67,24 +67,31 @@ class MaterialReadShort(BaseModel):
     type: MaterialTypeEnum
     color: str
     thickness: MaterialThicknessEnum
+
+class TaskProductRead(BaseModel):
+    product: ProductTRead
+    color: Optional[str]
     painting: bool
+    quantity: int
+    done_quantity: int
+    product_fields: List[Dict[str, Any]]
+
 
 class TaskRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    product: ProductTRead
     material: MaterialReadShort
-    quantity: int
     urgency: UrgencyEnum
     status: StatusEnum
-    waste: Optional[str]
-    weight: Optional[str]
     sheets: Optional[List[Dict[str, int]]]
     created_at: datetime
     completed_at: Optional[datetime]
     workshops: Optional[List[TaskWorkshopRead]]
-    product_fields: List[Dict[str, Any]]
+    task_products: List[TaskProductRead]
+    total_quantity: int
+    done_quantity: int
+    progress_percent: float
 
 class BidRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -93,21 +100,99 @@ class BidRead(BaseModel):
     task_number: int
     manager: ManagerEnum
     customer: CustomerShort
+    status: StatusEnum
     tasks: List[TaskRead]
 
+class MaterialCreateSchema(BaseModel):
+    """
+    Схема для создания материала.
+    """
+    material_type: str = Field(..., description="Тип материала")
+    material_thickness: str = Field(..., description="Толщина материала")
+    color: Optional[str] = Field(None, description="Цвет материала")
+
+class SheetsCreate(BaseModel):
+    """
+    Схема для создания информации о листах для задачи.
+    """
+    width: int = Field(..., description="Ширина листа")
+    length: int = Field(..., description="Длина листа")
+    quantity: int = Field(..., description="Количество листов")
+
+class CommonProductFields(BaseModel):
+    quantity: int = Field(..., description="Количество")
+    color: Optional[str] = Field(None, description="Цвет")
+    painting: Optional[bool] = Field(False, description="Покраска")
+
+class CassetteProduct(CommonProductFields):
+    cassette_type: str
+    description: str
+
+class ProfileProduct(CommonProductFields):
+    profile_type: str
+    length: float
+
+class KlamerProduct(CommonProductFields):
+    klamer_type: str
+
+class BracketProduct(CommonProductFields):
+    width: float
+    length: str
+
+class ExtensionBracketProduct(CommonProductFields):
+    width: float
+    length: str
+    has_heel: bool
+
+class LinearPanelProduct(CommonProductFields):
+    panel_width: float
+    groove: float
+    length: float
+    has_endcap: bool
+
+class SheetProduct(CommonProductFields):
+    pass
 
 
+
+ProductDetail = Union[
+    CassetteProduct,
+    ProfileProduct,
+    KlamerProduct,
+    BracketProduct,
+    ExtensionBracketProduct,
+    LinearPanelProduct,
+    SheetProduct
+]
 class TaskCreate(BaseModel):
     """
     Схема для создания задачи в рамках заявки.
     """
     product_name: str = Field(..., description="имя продукта")
-    product_details: Dict[str, Any] = Field(..., description="Детали продукта")
-    material_type: MaterialTypeEnum = Field(..., description="Тип материала")
-    color: str = Field(..., description="Цвет материала")
-    painting: bool = Field(..., description="Нужна ли покраска")
-    material_thickness: MaterialThicknessEnum = Field(..., description="Толщина материала")
-    sheets: Optional[List[Dict[str, int]]] = Field(None, description="Листы")
+    product_details: list[Any] = Field(..., description="Детали продукта")
+    material: MaterialCreateSchema = Field(..., description="материал")
+    sheets: Optional[List[SheetsCreate]] = Field(None, description="Листы")
     urgency: UrgencyEnum = Field(..., description="Срочность")
     workshops: List[str] = Field(..., description="Рабочие места")
     employees: List[int] = Field(..., description="Сотрудники")
+
+    @field_validator("product_details", mode="before")
+    @classmethod
+    def detect_product_type(cls, value):
+        def classify_product(obj: dict) -> ProductDetail:
+            if "cassette_type" in obj:
+                return CassetteProduct(**obj)
+            elif "profile_type" in obj:
+                return ProfileProduct(**obj)
+            elif "klamer_type" in obj:
+                return KlamerProduct(**obj)
+            elif "width" in obj and "length" in obj and "has_heel" in obj:
+                return ExtensionBracketProduct(**obj)
+            elif "width" in obj and "length" in obj:
+                return BracketProduct(**obj)
+            elif "panel_width" in obj:
+                return LinearPanelProduct(**obj)
+            else:
+                return SheetProduct(**obj)
+
+        return [classify_product(item) for item in value]

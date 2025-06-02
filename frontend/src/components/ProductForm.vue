@@ -12,9 +12,6 @@ const form = reactive({
   urgency: props.product?.urgency || '',
   workshops: Array.isArray(props.product?.workshops) ? props.product.workshops : [],
   employees: Array.isArray(props.product?.employees) ? props.product.employees : [],
-  color: props.product?.color || '',
-  quantity: props.product?.quantity || '',
-  painting: props.product?.painting || '',
 });
 
 const productFields = ref([]);
@@ -94,9 +91,6 @@ function emitUpdate() {
     urgency: form.urgency,
     workshops: form.workshops,
     employees: form.employees,
-    color: form.color,
-    quantity: form.quantity,
-    painting: form.painting,
   });
 }
 

@@ -2,7 +2,7 @@ from sqlalchemy import Enum as SQLEnum, ForeignKey, String
 from backend.app.database.database import Base
 from backend.app.models.enums import ManagerEnum, StatusEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+from sqlalchemy.ext.asyncio import AsyncSession
 # Bid Table
 class Bid(Base):
     __tablename__ = "bid"
@@ -16,8 +16,8 @@ class Bid(Base):
     customer = relationship("Customer", back_populates="bid")
     comments = relationship("Comment", back_populates="bid", cascade="all, delete-orphan")
 
-    @property
-    def progress_percent(self):
+    async def get_progress_percent(self, session: AsyncSession) -> float:
+        await session.refresh(self, ['tasks'])  # убедиться, что tasks загружены
         total = sum(task.total_quantity for task in self.tasks)
         done = sum(task.done_quantity for task in self.tasks)
         return (done / total * 100) if total else 0
