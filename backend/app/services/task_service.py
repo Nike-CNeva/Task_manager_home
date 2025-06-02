@@ -75,7 +75,7 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
     result = await db.execute(stmt)
     tasks = result.scalars().unique().all()
 
-    #tasks = filter_tasks_by_user(tasks, current_user)
+    tasks = filter_tasks_by_user(tasks, current_user)
     
     bids_dict = defaultdict(list)
 
