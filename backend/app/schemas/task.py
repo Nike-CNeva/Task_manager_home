@@ -7,6 +7,8 @@ from pydantic import field_validator
 class TaskWorkshopRead(BaseModel):
     workshop_name: WorkshopEnum
     status: StatusEnum
+    progress_percent: float
+
 
 class CustomerShort(BaseModel):
     id: int

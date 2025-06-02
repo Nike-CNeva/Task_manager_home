@@ -14,7 +14,7 @@ from backend.app.models.workshop import Workshop
 from backend.app.models.comment import Comment
 from backend.app.schemas.bid import BidCreate
 from backend.app.schemas.product_fields import get_product_fields
-from backend.app.schemas.task import BidRead, BidRead, CustomerShort, MaterialReadShort, ProductTRead, TaskRead, TaskWorkshopRead
+from backend.app.schemas.task import BidRead, BidRead, CustomerShort, MaterialReadShort, ProductTRead, TaskProductRead, TaskRead, TaskWorkshopRead
 from backend.app.services.file_service import save_file
 from backend.app.database.database_service import AsyncDatabaseService
 import logging
@@ -160,14 +160,26 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
         select(Task)
         .options(
             selectinload(Task.bid).selectinload(Bid.customer),
-            selectinload(Task.product).selectinload(Product.profile),
-            selectinload(Task.product).selectinload(Product.klamer),
-            selectinload(Task.product).selectinload(Product.bracket),
-            selectinload(Task.product).selectinload(Product.extension_bracket),
-            selectinload(Task.product).selectinload(Product.cassette),
-            selectinload(Task.product).selectinload(Product.linear_panel),
             selectinload(Task.material),
             selectinload(Task.sheets),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.profile),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.klamer),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.bracket),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.extension_bracket),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.cassette),
+            selectinload(Task.task_products)
+                .selectinload(TaskProduct.product)
+                .selectinload(Product.linear_panel),
             selectinload(Task.workshops).selectinload(TaskWorkshop.workshop),
         )
         .where(Task.id == task_id)
@@ -178,16 +190,30 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
 
     if task is None:
         return None
-    product_fields = await get_product_fields(task.product.type)
+
+    # Перебираем все продукты, прикреплённые к задаче
+    task_product_reads = []
+    for tp in task.task_products:
+        product_fields = await get_product_fields(tp.product.type)
+
+        task_product_reads.append(
+            TaskProductRead(
+                product=ProductTRead.model_validate(tp.product, from_attributes=True),
+                color=tp.color,
+                painting=tp.painting,
+                quantity=tp.quantity,
+                done_quantity=tp.done_quantity,
+                product_fields=product_fields
+            )
+        )
+
     task_read = TaskRead(
         id=task.id,
-        product=ProductTRead.model_validate(task.product, from_attributes=True),
         material=MaterialReadShort.model_validate(task.material, from_attributes=True),
-        quantity=task.quantity,
         urgency=task.urgency,
         status=task.status,
-        waste=task.waste,
-        weight=task.weight,
+        created_at=task.created_at,
+        completed_at=task.completed_at,
         sheets=[
             {
                 "id": s.id,
@@ -196,15 +222,17 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
                 "length": s.length
             } for s in task.sheets
         ] if task.sheets else [],
-        created_at=task.created_at,
-        completed_at=task.completed_at,
         workshops=[
             TaskWorkshopRead(
                 workshop_name=tw.workshop.name,
-                status=tw.status
+                status=tw.status,
+                progress_percent=tw.progress_percent
             ) for tw in task.workshops
         ],
-        product_fields=product_fields
+        task_products=task_product_reads,
+        total_quantity=task.total_quantity,
+        done_quantity=task.done_quantity,
+        progress_percent=task.progress_percent
     )
 
     bid_obj = task.bid
@@ -216,7 +244,8 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
             id=bid_obj.customer.id,
             name=bid_obj.customer.name
         ),
-        tasks=[task_read]  # список из одной задачи
+        status=bid_obj.status,
+        tasks=[task_read]
     )
 
     return bid_read
