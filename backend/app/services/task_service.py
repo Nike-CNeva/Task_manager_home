@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +22,25 @@ from sqlalchemy.exc import SQLAlchemyError
 from collections import defaultdict
 logger = logging.getLogger(__name__)
 
+def filter_tasks_by_user(tasks: List[Task], current_user: User) -> List[Task]:
+    seen_bid_ids: Set[int] = set()
+    filtered_tasks = []
+
+    for task in tasks:
+        bid_id = task.bid.id
+        user_responsible = task.bid.responsible_id == current_user.id
+        user_workshop_ids = {tw.workshop_id for tw in task.workshops}
+        user_has_workshop = current_user.workshop_id in user_workshop_ids if current_user.workshop_id else False
+
+        if bid_id in seen_bid_ids:
+            continue
+
+        if user_responsible or user_has_workshop:
+            seen_bid_ids.add(bid_id)
+            filtered_tasks.append(task)
+
+    return filtered_tasks
+
 async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidRead]:
     stmt = (
         select(Task)
@@ -43,6 +62,8 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
     result = await db.execute(stmt)
     tasks = result.scalars().unique().all()
 
+    tasks = filter_tasks_by_user(tasks, current_user)
+    
     bids_dict = defaultdict(list)
 
     for task in tasks:
