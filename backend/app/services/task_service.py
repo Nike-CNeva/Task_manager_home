@@ -22,6 +22,18 @@ from sqlalchemy.exc import SQLAlchemyError
 from collections import defaultdict
 logger = logging.getLogger(__name__)
 
+async def load_user_with_relationships(user_id: int, db: AsyncSession) -> User:
+    stmt = (
+        select(User)
+        .options(
+            selectinload(User.workshops),
+            selectinload(User.tasks)
+        )
+        .where(User.id == user_id)
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one()
+
 async def filter_tasks_by_user(tasks: List[Task], current_user: User) -> List[Task]:
     filtered_tasks = []
     user_workshop_ids = {ws.id for ws in current_user.workshops}
@@ -38,6 +50,7 @@ async def filter_tasks_by_user(tasks: List[Task], current_user: User) -> List[Ta
     return filtered_tasks
 
 async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidRead]:
+    current_user = await load_user_with_relationships(current_user.id, db)
     stmt = (
         select(Task)
         .options(
