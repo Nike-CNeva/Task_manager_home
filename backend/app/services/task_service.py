@@ -75,9 +75,9 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
                 .selectinload(Product.linear_panel),
             selectinload(Task.material),
             selectinload(Task.sheets),
+            selectinload(Task.responsible_users),
             selectinload(Task.workshops).selectinload(TaskWorkshop.workshop),
             selectinload(Task.bid).selectinload(Bid.tasks).selectinload(Task.task_products)
-            selectinload(Task.responsible_users)
         )
         .order_by(Task.created_at.desc())
     )
