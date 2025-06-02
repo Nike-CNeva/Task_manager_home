@@ -46,7 +46,24 @@
 
     <p><strong>Дата создания:</strong> {{ formatDate(task.tasks[0]?.created_at) }}</p>
     <p><strong>Дата завершения:</strong> {{ formatDate(task.tasks[0]?.completed_at) }}</p>
+    <!-- Комментарии -->
+    <div v-if="task.comments?.length">
+      <h3>Комментарии:</h3>
+      <ul>
+        <li v-for="comment in task.comments" :key="comment.id">
+          <p><strong>{{ comment.author }}</strong> — {{ formatDate(comment.created_at) }}</p>
+          <p>{{ comment.text }}</p>
+        </li>
+      </ul>
+    </div>
+    <p v-else>Комментариев пока нет.</p>
 
+    <!-- Добавление нового комментария -->
+    <div class="comment-form">
+      <h3>Добавить комментарий</h3>
+      <textarea v-model="newComment" rows="3" placeholder="Введите комментарий..."></textarea>
+      <button class="btn btn-primary" @click="submitComment">Отправить</button>
+    </div>
     <button class="btn btn-danger" @click="deleteTask(task.id)">Удалить задачу</button>
   </div>
 
@@ -94,6 +111,7 @@ async function fetchTask(id) {
   try {
     const response = await api.get(`/task/${id}`)
     task.value = response.data
+    if (!task.value.comments) task.value.comments = []
   } catch (error) {
     console.error('Ошибка загрузки задачи:', error)
     alert('Не удалось загрузить задачу')
@@ -126,6 +144,28 @@ onMounted(() => {
     router.push('/tasks')
   }
 })
+const newComment = ref('')
+
+async function submitComment() {
+  const trimmed = newComment.value.trim()
+  if (!trimmed) {
+    alert('Комментарий не может быть пустым.')
+    return
+  }
+
+  try {
+    const response = await api.post(`/task/${task.value.id}/comments`, {
+      text: trimmed
+    })
+
+    // Предполагаем, что сервер возвращает добавленный комментарий
+    task.value.comments.push(response.data)
+    newComment.value = ''
+  } catch (error) {
+    console.error('Ошибка добавления комментария:', error)
+    alert('Не удалось отправить комментарий.')
+  }
+}
 </script>
 
 
@@ -149,6 +189,23 @@ p {
 }
 .btn-secondary {
   background-color: #6c757d;
+  color: white;
+}
+.comment-form {
+  margin-top: 20px;
+}
+
+textarea {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.btn-primary {
+  background-color: #007bff;
   color: white;
 }
 </style>
