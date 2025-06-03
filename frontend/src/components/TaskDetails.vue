@@ -72,7 +72,7 @@
   </div>
 </template>
 <script setup>
-import { decrypt } from '@/utils/encryption'
+import { decrypt } from '@/utils/сrypto'
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/utils/axios'
