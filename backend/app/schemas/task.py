@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
 from pydantic import field_validator
 
+from backend.app.schemas.comment import CommentRead
+
 class TaskWorkshopRead(BaseModel):
     workshop_name: WorkshopEnum
     status: StatusEnum
@@ -104,6 +106,10 @@ class BidRead(BaseModel):
     customer: CustomerShort
     status: StatusEnum
     tasks: List[TaskRead]
+    comments: List[CommentRead] = []
+    progress_percent: Optional[float] = None
+
+
 
 class MaterialCreateSchema(BaseModel):
     """

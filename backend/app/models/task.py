@@ -20,7 +20,7 @@ class Task(Base):
     material = relationship("Material", back_populates="tasks")
     task_products = relationship("TaskProduct", back_populates="task", cascade="all, delete-orphan", single_parent=True)
     workshops = relationship("TaskWorkshop", back_populates="task", cascade="all, delete-orphan")
-    responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks")
+    responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks", cascade="all, delete")
 
     @property
     def total_quantity(self):
@@ -57,7 +57,7 @@ class TaskWorkshop(Base):
 class TaskProduct(Base):
     __tablename__ = "task_products"
     id: Mapped[int] = mapped_column(primary_key=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
+    task_id: Mapped[int] = mapped_column(ForeignKey("task.id", ondelete="CASCADE"))
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
 
     color: Mapped[str] = mapped_column(String(50), nullable=True)
@@ -66,4 +66,4 @@ class TaskProduct(Base):
     done_quantity: Mapped[int] = mapped_column(default=0)
 
     task = relationship("Task", back_populates="task_products")
-    product = relationship("Product", back_populates="task_products")
+    product = relationship("Product", back_populates="task_products", cascade="all, delete-orphan")

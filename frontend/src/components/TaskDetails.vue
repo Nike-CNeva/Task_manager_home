@@ -50,9 +50,20 @@
     <div v-if="task.comments?.length">
       <h3>Комментарии:</h3>
       <ul>
-        <li v-for="comment in task.comments" :key="comment.id">
-          <p><strong>{{ comment.author }}</strong> — {{ formatDate(comment.created_at) }}</p>
-          <p>{{ comment.text }}</p>
+        <li v-for="comment in task.comments" :key="comment.id" class="comment-item">
+          <div class="comment-header">
+            <div class="comment-content">
+              <p><strong>Автор:</strong> {{ comment.user.firstname }} {{ comment.user.name }} — {{ formatDate(comment.created_at) }}</p>
+              <p>{{ comment.content }}</p>
+            </div>
+            <button
+              v-if="canDeleteComment(comment)"
+              @click="deleteComment(comment.id)"
+              class="btn-delete-comment"
+            >
+              ✕
+            </button>
+          </div>
         </li>
       </ul>
     </div>
@@ -64,7 +75,8 @@
       <textarea v-model="newComment" rows="3" placeholder="Введите комментарий..."></textarea>
       <button class="btn btn-primary" @click="submitComment">Отправить</button>
     </div>
-    <button class="btn btn-danger" @click="deleteTask(task.id)">Удалить задачу</button>
+      <button class="btn btn-danger" @click="() => deleteTask(task.tasks[0].id)">Удалить задачу</button>
+
   </div>
 
   <div v-else>
@@ -80,7 +92,7 @@ import api from '@/utils/axios'
 const route = useRoute()
 const router = useRouter()
 const task = ref(null)
-
+const currentUser = ref(null)
 const productType = computed(() => {
   const product = task.value?.tasks?.[0]?.task_products?.[0]?.product
   return product?.type || null
@@ -137,6 +149,15 @@ function goBack() {
 }
 
 onMounted(() => {
+  const encrypted = localStorage.getItem('user')
+  if (encrypted) {
+    try {
+      currentUser.value = decrypt(encrypted)
+    } catch (e) {
+      console.error('Ошибка дешифровки пользователя:', e)
+    }
+  }
+
   const taskId = route.params.id
   if (taskId) {
     fetchTask(taskId)
@@ -146,7 +167,12 @@ onMounted(() => {
   }
 })
 const newComment = ref('')
-
+function canDeleteComment() {
+  if (!currentUser.value) return false
+  return (
+    currentUser.value.user_type === 'Администратор'
+  )
+}
 async function submitComment() {
   const trimmed = newComment.value.trim()
   if (!trimmed) {
@@ -154,25 +180,8 @@ async function submitComment() {
     return
   }
 
-  // Получаем пользователя из localStorage
-  const encryptedUser = localStorage.getItem('user') // предполагается, что ты хранишь это под ключом "user"
-  if (!encryptedUser) {
-    alert('Не удалось получить данные пользователя.')
-    return
-  }
-
-  let user
-  try {
-    user = decrypt(encryptedUser)
-  } catch (e) {
-    console.error('Ошибка дешифровки пользователя:', e)
-    alert('Ошибка при дешифровке пользователя.')
-    return
-  }
-
   try {
     const response = await api.post(`/tasks/${task.value.id}/comments`, {
-      user_id: user.id,
       content: trimmed,
       bid_id: task.value.id
     })
@@ -182,6 +191,17 @@ async function submitComment() {
   } catch (error) {
     console.error('Ошибка добавления комментария:', error)
     alert('Не удалось отправить комментарий.')
+  }
+}
+async function deleteComment(commentId) {
+  if (!confirm('Удалить комментарий?')) return
+  try {
+    await api.delete(`/comments/${commentId}`)
+    task.value.comments = task.value.comments.filter(c => c.id !== commentId)
+    alert('Комментарий удалён')
+  } catch (error) {
+    console.error('Ошибка удаления комментария:', error)
+    alert('Не удалось удалить комментарий.')
   }
 }
 </script>
@@ -225,5 +245,29 @@ textarea {
 .btn-primary {
   background-color: #007bff;
   color: white;
+}
+.comment-item {
+  margin-bottom: 12px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+}
+
+.btn-delete-comment {
+  background-color: red;
+  color: white;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  height: 24px;
+}
+
+.btn-delete-comment:hover {
+  background-color: darkred;
 }
 </style>

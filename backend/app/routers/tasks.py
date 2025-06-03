@@ -6,6 +6,7 @@ from backend.app.core.dependencies import get_current_user, get_db
 from backend.app.models.bid import Customer
 from backend.app.models.enums import CassetteTypeEnum, FileType, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
 from backend.app.models.product import Product
+from backend.app.models.task import Task
 from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
 from backend.app.schemas.bid import BidCreate
@@ -40,6 +41,24 @@ async def get_task(task_id: int, db: AsyncSession = Depends(get_db), current_use
         raise HTTPException(status_code=404, detail="Задача не найдена")
     return task
 
+@router.delete("/task/{task_id}/delete")
+async def delete_task(task_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        # Поиск задачи по ID
+        result = await db.execute(select(Task).where(Task.id == task_id))
+        task = result.scalar_one_or_none()
+
+        if task is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
+
+        # Удаление задачи
+        await db.delete(task)
+        await db.commit()
+
+        return {"message": "Задача успешно удалена"}
+    
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.post("/bids/create/")
 async def create_bid(

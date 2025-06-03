@@ -21,7 +21,7 @@ class Product(Base):
 class Profile(Base):
     __tablename__ = "profile"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"))
     profile_type: Mapped[ProfileTypeEnum] = mapped_column(SQLEnum(ProfileTypeEnum), nullable=False)
     length: Mapped[int] = mapped_column(nullable=False)
     product = relationship("Product", back_populates="profile")
@@ -30,7 +30,7 @@ class Profile(Base):
 class Klamer(Base):
     __tablename__ = "klamer"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"))
     klamer_type: Mapped[KlamerTypeEnum] = mapped_column(SQLEnum(KlamerTypeEnum), nullable=False)
     product = relationship("Product", back_populates="klamer")
 
@@ -38,7 +38,7 @@ class Klamer(Base):
 class Bracket(Base):
     __tablename__ = "bracket"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"))
     width: Mapped[int] = mapped_column(nullable=False)
     length: Mapped[str] = mapped_column(nullable=False)
     product = relationship("Product", back_populates="bracket")
@@ -47,7 +47,7 @@ class Bracket(Base):
 class ExtensionBracket(Base):
     __tablename__ = "extension_bracket"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"))
     width: Mapped[int] = mapped_column(nullable=False)
     length: Mapped[str] = mapped_column(nullable=False)
     heel: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -57,7 +57,7 @@ class ExtensionBracket(Base):
 class Cassette(Base):
     __tablename__ = "cassette"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"))
     cassette_type: Mapped[CassetteTypeEnum] = mapped_column(SQLEnum(CassetteTypeEnum), nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=True)
     product = relationship("Product", back_populates="cassette")
@@ -66,7 +66,7 @@ class Cassette(Base):
 class LinearPanel(Base):
     __tablename__ = "linear_panel"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"))
     field: Mapped[int] = mapped_column(nullable=False)
     rust: Mapped[int] = mapped_column(nullable=False)
     length: Mapped[int] = mapped_column(nullable=False)

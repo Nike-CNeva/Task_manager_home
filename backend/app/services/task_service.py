@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
+from backend.app.models import comment
 from backend.app.models.bid import Bid, Customer
 from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum
 from backend.app.models.material import Material, Sheets
@@ -13,8 +14,10 @@ from backend.app.models.user import User
 from backend.app.models.workshop import Workshop
 from backend.app.models.comment import Comment
 from backend.app.schemas.bid import BidCreate
+from backend.app.schemas.comment import CommentRead
 from backend.app.schemas.product_fields import get_product_fields
 from backend.app.schemas.task import BidRead, BidRead, CustomerShort, MaterialReadShort, ProductTRead, TaskProductRead, TaskRead, TaskWorkshopRead
+from backend.app.schemas.user import UserRead
 from backend.app.services.file_service import save_file
 from backend.app.database.database_service import AsyncDatabaseService
 import logging
@@ -55,6 +58,7 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
         select(Task)
         .options(
             selectinload(Task.bid).selectinload(Bid.customer),
+            selectinload(Task.bid).selectinload(Bid.comments),
             selectinload(Task.task_products)
                 .selectinload(TaskProduct.product)
                 .selectinload(Product.profile),
@@ -137,7 +141,7 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
         bid_obj, _ = task_group[0]
         # ⬇ Асинхронный расчет прогресса
         progress = await bid_obj.get_progress_percent(db)
-
+        
         bid_read = BidRead(
             id=bid_obj.id,
             task_number=bid_obj.task_number,
@@ -160,26 +164,20 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
         select(Task)
         .options(
             selectinload(Task.bid).selectinload(Bid.customer),
+            selectinload(Task.bid).selectinload(Bid.comments),
+            selectinload(Task.bid).selectinload(Bid.comments).selectinload(Comment.user),
             selectinload(Task.material),
             selectinload(Task.sheets),
             selectinload(Task.task_products)
-                .selectinload(TaskProduct.product)
-                .selectinload(Product.profile),
-            selectinload(Task.task_products)
-                .selectinload(TaskProduct.product)
-                .selectinload(Product.klamer),
-            selectinload(Task.task_products)
-                .selectinload(TaskProduct.product)
-                .selectinload(Product.bracket),
-            selectinload(Task.task_products)
-                .selectinload(TaskProduct.product)
-                .selectinload(Product.extension_bracket),
-            selectinload(Task.task_products)
-                .selectinload(TaskProduct.product)
-                .selectinload(Product.cassette),
-            selectinload(Task.task_products)
-                .selectinload(TaskProduct.product)
-                .selectinload(Product.linear_panel),
+            .selectinload(TaskProduct.product)
+            .options(
+                selectinload(Product.profile),
+                selectinload(Product.klamer),
+                selectinload(Product.bracket),
+                selectinload(Product.extension_bracket),
+                selectinload(Product.cassette),
+                selectinload(Product.linear_panel),
+            ),
             selectinload(Task.workshops).selectinload(TaskWorkshop.workshop),
         )
         .where(Task.id == task_id)
@@ -234,7 +232,15 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
         done_quantity=task.done_quantity,
         progress_percent=task.progress_percent
     )
-
+    comments = [
+        CommentRead(
+            id=comment.id,
+            user=UserRead.model_validate(comment.user, from_attributes=True),
+            content=comment.content,
+            created_at=comment.created_at
+        )
+        for comment in task.bid.comments
+    ]
     bid_obj = task.bid
     bid_read = BidRead(
         id=bid_obj.id,
@@ -245,7 +251,8 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
             name=bid_obj.customer.name
         ),
         status=bid_obj.status,
-        tasks=[task_read]
+        tasks=[task_read],
+        comments=comments
     )
 
     return bid_read
