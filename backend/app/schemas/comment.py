@@ -19,12 +19,12 @@ class CommentRead(CommentBase):
 class CommentCreate(BaseModel):
     user_id: int
     content: str
-    task_id: int
+    bid_id: int
     
 
 class CommentResponse(BaseModel):
     id: int
     user_id: int
-    task_id: int
+    bid_id: int
     content: str
     created_at: datetime

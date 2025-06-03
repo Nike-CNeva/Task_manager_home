@@ -72,6 +72,7 @@
   </div>
 </template>
 <script setup>
+import { decrypt } from '@/utils/encryption'
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/utils/axios'
@@ -153,12 +154,29 @@ async function submitComment() {
     return
   }
 
+  // Получаем пользователя из localStorage
+  const encryptedUser = localStorage.getItem('user') // предполагается, что ты хранишь это под ключом "user"
+  if (!encryptedUser) {
+    alert('Не удалось получить данные пользователя.')
+    return
+  }
+
+  let user
   try {
-    const response = await api.post(`/task/${task.value.id}/comments`, {
-      text: trimmed
+    user = decrypt(encryptedUser)
+  } catch (e) {
+    console.error('Ошибка дешифровки пользователя:', e)
+    alert('Ошибка при дешифровке пользователя.')
+    return
+  }
+
+  try {
+    const response = await api.post(`/tasks/${task.value.id}/comments`, {
+      user_id: user.id,
+      content: trimmed,
+      bid_id: task.value.id
     })
 
-    // Предполагаем, что сервер возвращает добавленный комментарий
     task.value.comments.push(response.data)
     newComment.value = ''
   } catch (error) {
