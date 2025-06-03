@@ -18,7 +18,7 @@ class Task(Base):
     sheets = relationship("Sheets", back_populates="task", cascade="all, delete-orphan")
     bid = relationship("Bid", back_populates="tasks")
     material = relationship("Material", back_populates="tasks")
-    task_products = relationship("TaskProduct", back_populates="task", cascade="all, delete-orphan", single_parent=True)
+    task_products = relationship("TaskProduct", back_populates="task", cascade="all, delete-orphan")
     workshops = relationship("TaskWorkshop", back_populates="task", cascade="all, delete-orphan")
     responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks", cascade="all, delete")
 
@@ -66,4 +66,4 @@ class TaskProduct(Base):
     done_quantity: Mapped[int] = mapped_column(default=0)
 
     task = relationship("Task", back_populates="task_products")
-    product = relationship("Product", back_populates="task_products", cascade="all, delete-orphan")
+    product = relationship("Product", back_populates="task_products", cascade="all, delete-orphan", single_parent=True)

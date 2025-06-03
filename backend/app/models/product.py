@@ -9,7 +9,7 @@ class Product(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     type: Mapped[ProductTypeEnum] = mapped_column(SQLEnum(ProductTypeEnum), nullable=False)
 
-    task_products = relationship("TaskProduct", back_populates="product", cascade="all, delete-orphan")
+    task_products = relationship("TaskProduct", back_populates="product", cascade="all, delete-orphan", uselist=False)
     profile = relationship("Profile", back_populates="product", uselist=False)
     klamer = relationship("Klamer", back_populates="product", uselist=False)
     bracket = relationship("Bracket", back_populates="product", uselist=False)
