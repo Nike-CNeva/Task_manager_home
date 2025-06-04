@@ -6,7 +6,7 @@
           <label class="form-label">Имя</label>
           <input v-model="form.name" type="text" class="form-control" required>
         </div>
-        <div v-if="editMode" class="mb-3">
+        <div class="mb-3">
           <label class="form-label">Фамилия</label>
           <input v-model="form.firstname" type="text" class="form-control" required>
         </div>

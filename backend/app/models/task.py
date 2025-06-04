@@ -17,10 +17,10 @@ class Task(Base):
     completed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
     sheets = relationship("Sheets", back_populates="task", cascade="all, delete-orphan")
     bid = relationship("Bid", back_populates="tasks")
-    material = relationship("Material", back_populates="tasks")
+    material = relationship("Material", back_populates="tasks", cascade="all, delete-orphan", uselist=False, single_parent=True)
     task_products = relationship("TaskProduct", back_populates="task", cascade="all, delete-orphan")
     workshops = relationship("TaskWorkshop", back_populates="task", cascade="all, delete-orphan")
-    responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks", cascade="all, delete")
+    responsible_users = relationship("User", secondary=task_responsible_association, back_populates="tasks")
 
     @property
     def total_quantity(self):

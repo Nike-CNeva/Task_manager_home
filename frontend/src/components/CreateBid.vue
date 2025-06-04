@@ -137,6 +137,7 @@ async function submitForm() {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     alert('Заявка успешно создана!')
+    router.push('/tasks')
   } catch (error) {
     alert('Ошибка: ' + (error.response?.data?.message || error.message))
   }

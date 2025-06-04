@@ -1,10 +1,13 @@
+import os
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from typing import List
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.dependencies import get_current_user, get_db
-from backend.app.models.bid import Customer
+from backend.app.models.bid import Bid, Customer
 from backend.app.models.enums import CassetteTypeEnum, FileType, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
+from backend.app.models.files import Files
 from backend.app.models.product import Product
 from backend.app.models.task import Task
 from backend.app.models.user import User
@@ -12,13 +15,16 @@ from backend.app.models.workshop import Workshop
 from backend.app.schemas.bid import BidCreate
 from backend.app.schemas.create_bid import ReferenceDataResponse
 from backend.app.schemas.customer import CustomerRead
+from backend.app.schemas.file import UploadedFileResponse
 from backend.app.schemas.product_fields import get_product_fields
-from backend.app.schemas.task import BidRead
+from backend.app.schemas.task import BidRead, FilesRead, MaterialUpdate
 from backend.app.schemas.user import EmployeeOut
 from backend.app.schemas.workshop import WorkshopRead
 from backend.app.services import task_service
 import json
 import logging
+
+from backend.app.services.file_service import save_file
 
 
 router = APIRouter()
@@ -42,24 +48,66 @@ async def get_task(task_id: int, db: AsyncSession = Depends(get_db), current_use
     return task
 
 @router.delete("/task/{task_id}/delete")
-async def delete_task(task_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def delete_task(
+    task_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     try:
-        # Поиск задачи по ID
-        result = await db.execute(select(Task).where(Task.id == task_id))
+        # Поиск задачи с предзагрузкой заявки
+        result = await db.execute(
+            select(Task).options(joinedload(Task.bid)).where(Task.id == task_id)
+        )
         task = result.scalar_one_or_none()
 
         if task is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
 
+        bid_id = task.bid_id
+
         # Удаление задачи
         await db.delete(task)
         await db.commit()
 
+        # Проверка: остались ли задачи у заявки
+        result = await db.execute(
+            select(func.count()).select_from(Task).where(Task.bid_id == bid_id)
+        )
+        remaining_tasks = result.scalar()
+
+        if remaining_tasks == 0:
+            # Получение заявки
+            result = await db.execute(select(Bid).where(Bid.id == bid_id))
+            bid = result.scalar_one_or_none()
+
+            if bid:
+                # Получение всех файлов, связанных с заявкой
+                result = await db.execute(select(Files).where(Files.bid_id == bid_id))
+                files = result.scalars().all()
+
+                for file in files:
+                    # Удаление файла с диска, если он существует
+                    if file.file_path and os.path.exists(file.file_path):
+                        try:
+                            os.remove(file.file_path)
+                        except Exception as e:
+                            # Не критично, просто лог (если логируете)
+                            print(f"Не удалось удалить файл {file.file_path}: {e}")
+
+                    # Удаление записи файла из базы
+                    await db.delete(file)
+
+                # Удаление заявки
+                await db.delete(bid)
+                await db.commit()
+
+                return {"message": "Задача и заявка удалены. Связанные файлы также удалены."}
+
         return {"message": "Задача успешно удалена"}
-    
+
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
+    
 @router.post("/bids/create/")
 async def create_bid(
     bid_data: str = Form(...),
@@ -149,3 +197,60 @@ async def get_reference_data(db: AsyncSession = Depends(get_db)):
         "workshops": [{"name": workshop.name, "value": workshop.value} for workshop in WorkshopEnum],
         "employees": [{"id": employee.id, "name": employee.name, "firstname": employee.firstname} for employee in employees]
     }
+
+@router.patch("/tasks/{task_id}/material")
+async def update_material_data(
+    task_id: int,
+    data: MaterialUpdate,
+    session: AsyncSession = Depends(get_db)
+):
+    result = await session.execute(
+        select(Task).where(Task.id == task_id).options(selectinload(Task.material))
+    )
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    if task.material:
+        if data.weight is not None:
+            if task.material.weight is None:
+                task.material.weight = data.weight
+            else:
+                task.material.weight = task.material.weight + data.weight
+        if data.waste is not None:
+            task.material.waste = data.waste
+        await session.commit()
+        return {"success": True}
+    else:
+        raise HTTPException(status_code=404, detail="Материал не найден")
+
+@router.post("/tasks/{bid_id}/files", response_model=List[FilesRead]) 
+async def upload_file_to_task(
+    bid_id: int,
+    files: List[UploadFile] = File([]),
+    db: AsyncSession = Depends(get_db)
+):
+        # Валидация файлов по расширениям
+    ext_map = {
+        "jpg": FileType.PHOTO,
+        "jpeg": FileType.PHOTO,
+        "png": FileType.IMAGE,
+        "pdf": FileType.PDF,
+        "nc": FileType.NC,
+        "xls": FileType.EXCEL,
+        "xlsx": FileType.EXCEL,
+        "doc": FileType.WORD,
+        "docx": FileType.WORD,
+        "dxf": FileType.DXF,
+        "dwg": FileType.DWG,
+    }
+    files_save = []
+    for file in files:
+        if '.' not in file.filename:
+            raise HTTPException(status_code=400, detail="File must have an extension")
+        ext = file.filename.rsplit('.', 1)[-1].lower()
+        if ext not in ext_map:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file extension: {ext}")
+        file_save =  await save_file(bid_id, file, db)
+        files_save.append(file_save)
+    return files_save

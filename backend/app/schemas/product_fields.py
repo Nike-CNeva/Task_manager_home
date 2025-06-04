@@ -25,10 +25,10 @@ product_fields_by_type = {
         {"name": "description", "label": "Описание", "type": "text"},
     ],
     ProductTypeEnum.LINEAR_PANEL: [
-        {"name": "panel_width", "label": "Поле", "type": "number"},
-        {"name": "groove", "label": "Руст", "type": "number"},
+        {"name": "field", "label": "Поле", "type": "number"},
+        {"name": "rust", "label": "Руст", "type": "number"},
         {"name": "length", "label": "Длина", "type": "number"},
-        {"name": "has_endcap", "label": "Наличие торцевания", "type": "checkbox"},
+        {"name": "butt_end", "label": "Наличие торцевания", "type": "checkbox"},
     ],
     ProductTypeEnum.SHEET: [],
 }

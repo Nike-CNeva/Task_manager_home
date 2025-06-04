@@ -10,9 +10,9 @@ class Material(Base):
     type: Mapped[MaterialTypeEnum] = mapped_column(SQLEnum(MaterialTypeEnum), nullable=False)
     thickness: Mapped[MaterialThicknessEnum] = mapped_column(SQLEnum(MaterialThicknessEnum), nullable=False)
     color: Mapped[str] = mapped_column(String(50), nullable=True)
-    waste: Mapped[str] = mapped_column(String(50), nullable=True)
-    weight: Mapped[str] = mapped_column(String(50), nullable=True)
-    tasks = relationship("Task", back_populates="material")
+    waste: Mapped[float] = mapped_column(nullable=True)
+    weight: Mapped[float] = mapped_column(nullable=True)
+    tasks = relationship("Task", back_populates="material", uselist=False)
 
 # Additional Tables
 class Sheets(Base):

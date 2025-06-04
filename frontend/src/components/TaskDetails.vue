@@ -1,8 +1,12 @@
 <template>
   <div v-if="task">
     <h2>Детали задачи №{{ task.task_number }}</h2>
-    <button class="btn btn-secondary" @click="goBack">← Назад к списку задач</button>
-
+    <div class="top-buttons">
+      <button class="btn btn-secondary" @click="goBack">← Назад к списку задач</button>
+      <button class="btn btn-secondary" @click="showWeightInput = true">Добавить вес</button>
+      <button class="btn btn-secondary" @click="showWasteInput = true">Добавить отходность</button>
+      <input type="file" multiple @change="handleFileUpload" />
+    </div>
     <p><strong>Заказчик:</strong> {{ task.customer?.name || '—' }}</p>
     <p><strong>Менеджер:</strong> {{ task.manager || '—' }}</p>
     <p><strong>Тип продукции:</strong> {{ productType || '—' }}</p>
@@ -24,7 +28,24 @@
       </span>
       <span v-else>—</span>
     </p>
-
+    <p>
+      <strong>Вес:</strong>
+      {{ task.tasks[0]?.material?.weight ?? '—' }} кг
+    </p>
+    <div v-if="showWeightInput">
+      <label>Введите вес (в кг):</label>
+      <input type="number" v-model="newWeight" />
+      <button class="btn btn-primary" @click="updateMaterialField('weight', newWeight)">Сохранить</button>
+    </div>
+    <p>
+      <strong>Отходность:</strong>
+      {{ task.tasks[0]?.material?.waste ?? '—' }} %
+    </p>
+    <div v-if="showWasteInput">
+      <label>Введите отходность (%):</label>
+      <input type="number" v-model="newWaste" />
+      <button class="btn btn-primary" @click="updateMaterialField('waste', newWaste)">Сохранить</button>
+    </div>
     <p><strong>Листы:</strong></p>
     <ul v-if="task.tasks[0]?.sheets?.length">
       <li v-for="sheet in task.tasks[0].sheets" :key="sheet.id">
@@ -46,9 +67,19 @@
 
     <p><strong>Дата создания:</strong> {{ formatDate(task.tasks[0]?.created_at) }}</p>
     <p><strong>Дата завершения:</strong> {{ formatDate(task.tasks[0]?.completed_at) }}</p>
+        <div v-if="task.files?.length">
+      <h3>Файлы:</h3>
+      <ul>
+        <li v-for="file in task.files" :key="file.id">
+          <a :href="file.url" target="_blank">{{ file.filename }}</a>
+        </li>
+      </ul>
+    </div>
+    <p v-else>Файлы не прикреплены.</p>
     <!-- Комментарии -->
-    <div v-if="task.comments?.length">
       <h3>Комментарии:</h3>
+    <div v-if="task.comments?.length">
+
       <ul>
         <li v-for="comment in task.comments" :key="comment.id" class="comment-item">
           <div class="comment-header">
@@ -88,7 +119,10 @@ import { decrypt } from '@/utils/crypto'
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/utils/axios'
-
+const showWeightInput = ref(false)
+const showWasteInput = ref(false)
+const newWeight = ref(null)
+const newWaste = ref(null)
 const route = useRoute()
 const router = useRouter()
 const task = ref(null)
@@ -204,10 +238,63 @@ async function deleteComment(commentId) {
     alert('Не удалось удалить комментарий.')
   }
 }
+
+async function updateMaterialField(fieldName, fieldValue) {
+  try {
+    const payload = {}
+
+    if (fieldName === 'weight') {
+      const currentWeight = Number(task.value.tasks[0].material.weight) || 0
+      const newWeight = currentWeight + Number(fieldValue)
+      payload[fieldName] = newWeight
+    } else {
+      payload[fieldName] = fieldValue
+    }
+
+    await api.patch(`/tasks/${task.value.tasks[0].id}/material`, payload)
+
+    // Обновляем локальное состояние
+    task.value.tasks[0].material[fieldName] = payload[fieldName]
+
+    if (fieldName === 'weight') showWeightInput.value = false
+    if (fieldName === 'waste') showWasteInput.value = false
+
+    alert(`${fieldName === 'weight' ? 'Вес' : 'Отходность'} обновлена`)
+  } catch (error) {
+    console.error(`Ошибка обновления ${fieldName}:`, error)
+    alert(`Не удалось обновить ${fieldName === 'weight' ? 'вес' : 'отходность'}.`)
+  }
+}
+async function handleFileUpload(event) {
+  const files = event.target.files
+  if (!files.length) return
+
+  const formData = new FormData()
+  for (let file of files) {
+    formData.append('files', file)
+  }
+  try {
+    const response = await api.post(`/tasks/${task.value.id}/files`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    task.value.files.push(...response.data)
+    alert('Файлы загружены')
+  } catch (error) {
+    console.error('Ошибка загрузки файлов:', error)
+    alert('Не удалось загрузить файлы.')
+  }
+}
 </script>
 
 
 <style scoped>
+.top-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
 p {
   font-size: 16px;
   margin: 8px 0;

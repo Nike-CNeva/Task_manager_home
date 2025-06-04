@@ -15,8 +15,9 @@ from backend.app.models.workshop import Workshop
 from backend.app.models.comment import Comment
 from backend.app.schemas.bid import BidCreate
 from backend.app.schemas.comment import CommentRead
+from backend.app.schemas.file import UploadedFileResponse
 from backend.app.schemas.product_fields import get_product_fields
-from backend.app.schemas.task import BidRead, BidRead, CustomerShort, MaterialReadShort, ProductTRead, TaskProductRead, TaskRead, TaskWorkshopRead
+from backend.app.schemas.task import BidRead, BidRead, CustomerShort, FilesRead, MaterialReadShort, ProductTRead, TaskProductRead, TaskRead, TaskWorkshopRead
 from backend.app.schemas.user import UserRead
 from backend.app.services.file_service import save_file
 from backend.app.database.database_service import AsyncDatabaseService
@@ -165,6 +166,7 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
         .options(
             selectinload(Task.bid).selectinload(Bid.customer),
             selectinload(Task.bid).selectinload(Bid.comments),
+            selectinload(Task.bid).selectinload(Bid.files),
             selectinload(Task.bid).selectinload(Bid.comments).selectinload(Comment.user),
             selectinload(Task.material),
             selectinload(Task.sheets),
@@ -241,6 +243,16 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
         )
         for comment in task.bid.comments
     ]
+    files = [
+        FilesRead(
+            id=file.id,
+            filename=file.filename,
+            bid_id=file.bid_id,
+            file_type=file.file_type,
+            file_path=file.file_path
+        )
+        for file in task.bid.files
+    ]
     bid_obj = task.bid
     bid_read = BidRead(
         id=bid_obj.id,
@@ -252,7 +264,8 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
         ),
         status=bid_obj.status,
         tasks=[task_read],
-        comments=comments
+        comments=comments,
+        files=files
     )
 
     return bid_read

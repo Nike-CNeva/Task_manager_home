@@ -1,5 +1,7 @@
 from datetime import datetime
+from token import OP
 from typing import Any, Dict, List, Literal, Optional, Union
+from unittest.mock import Base
 from pydantic import BaseModel, ConfigDict, Field
 from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
 from pydantic import field_validator
@@ -71,6 +73,9 @@ class MaterialReadShort(BaseModel):
     type: MaterialTypeEnum
     color: str
     thickness: MaterialThicknessEnum
+    waste: Optional[float] = None
+    weight: Optional[float] = None
+
 
 class TaskProductRead(BaseModel):
     product: ProductTRead
@@ -97,6 +102,15 @@ class TaskRead(BaseModel):
     done_quantity: int
     progress_percent: float
 
+class FilesRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    bid_id: int
+    filename: str
+    file_type: str
+    file_path: str
+
 class BidRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
@@ -108,6 +122,9 @@ class BidRead(BaseModel):
     tasks: List[TaskRead]
     comments: List[CommentRead] = []
     progress_percent: Optional[float] = None
+    files: Optional[List[FilesRead]] = None
+
+
 
 
 
@@ -153,10 +170,11 @@ class ExtensionBracketProduct(CommonProductFields):
     has_heel: bool
 
 class LinearPanelProduct(CommonProductFields):
-    panel_width: float
-    groove: float
+    field: float
+    rust: float
     length: float
-    has_endcap: bool
+    butt_end: Optional[bool] = False
+
 
 class SheetProduct(CommonProductFields):
     pass
@@ -204,3 +222,8 @@ class TaskCreate(BaseModel):
                 return SheetProduct(**obj)
 
         return [classify_product(item) for item in value]
+    
+class MaterialUpdate(BaseModel):
+    weight: Optional[float] = None
+    waste: Optional[float] = None
+

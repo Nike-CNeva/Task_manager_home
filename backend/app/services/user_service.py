@@ -64,6 +64,7 @@ async def create_user(db: AsyncSession, user_data: UserSaveForm, workshop_ids: L
     # Создаем пользователя
     new_user = await db_service.create(User, {
         "name": user_data.name,
+        "firstname": user_data.firstname,
         "username": user_data.username,
         "password": hashed_password,
         "user_type": user_type_enum,

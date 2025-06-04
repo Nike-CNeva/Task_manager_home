@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 class Comment(Base):
     __tablename__ = "comment"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    bid_id: Mapped[int] = mapped_column(ForeignKey("bid.id"), nullable=False)
+    bid_id: Mapped[int] = mapped_column(ForeignKey("bid.id", ondelete="CASCADE"), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     content: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
