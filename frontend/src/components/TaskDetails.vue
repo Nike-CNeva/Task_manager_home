@@ -10,7 +10,7 @@
       </button>
       <button class="btn btn-secondary" @click="showWeightInput = true">Добавить вес</button>
       <button class="btn btn-secondary" @click="showWasteInput = true">Добавить отходность</button>
-      <input type="file" multiple @change="handleFileUpload" />
+      <input type="file" multiple accept="jpg, .jpeg, .png, .pdf, .nc, .xls, .xlsx, .doc, .docx, .dxf, .dwg" @change="handleFileUpload" />
     </div>
     <div v-if="showQuantityInput" class="quantity-input-block">
       <label>Введите количество готовой продукции для каждого продукта:</label>

@@ -43,7 +43,7 @@
       <!-- Загрузка файлов -->
       <div class="form-row">
         <label for="file-upload">Загрузить файлы:</label>
-        <input id="file-upload" type="file" multiple @change="handleFileUpload" />
+        <input id="file-upload" type="file" multiple accept="jpg, .jpeg, .png, .pdf, .nc, .xls, .xlsx, .doc, .docx, .dxf, .dwg" @change="handleFileUpload" />
       </div>
 
 
