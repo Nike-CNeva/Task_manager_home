@@ -2,6 +2,7 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from backend.app.models.enums import UserTypeEnum, WorkshopEnum
+from backend.app.schemas.workshop import WorkshopRead
 
 
 
@@ -32,7 +33,7 @@ class PasswordChangeRequest(BaseModel):
     
 
 class UserWithWorkshops(UserRead):
-    workshops: List[str]
+    workshops: List[WorkshopRead]
 
 
 class EmployeeOut(BaseModel):

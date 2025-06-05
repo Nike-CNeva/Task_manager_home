@@ -3,9 +3,22 @@
     <h2>Детали задачи №{{ task.task_number }}</h2>
     <div class="top-buttons">
       <button class="btn btn-secondary" @click="goBack">← Назад к списку задач</button>
+      <button v-if="canShowInWorkButton" class="btn btn-warning" @click="updateTaskStatus('В работе')">В работу</button>
+      <button class="btn btn-success" @click="updateTaskStatus('Выполнена')">Выполнена</button>
+      <button class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">
+        Добавить количество
+      </button>
       <button class="btn btn-secondary" @click="showWeightInput = true">Добавить вес</button>
       <button class="btn btn-secondary" @click="showWasteInput = true">Добавить отходность</button>
       <input type="file" multiple @change="handleFileUpload" />
+    </div>
+    <div v-if="showQuantityInput" class="quantity-input-block">
+      <label>Введите количество готовой продукции для каждого продукта:</label>
+      <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="tp.id" class="quantity-for-product">
+        <p><strong>Продукт №{{ index + 1 }} (ID: {{ tp.id }})</strong></p>
+        <input type="number" v-model.number="quantities[index]" min="0" />
+      </div>
+      <button class="btn btn-success" @click="submitQuantity">Сохранить количество</button>
     </div>
     <p><strong>Заказчик:</strong> {{ task.customer?.name || '—' }}</p>
     <p><strong>Менеджер:</strong> {{ task.manager || '—' }}</p>
@@ -21,7 +34,7 @@
     </div>
 
     <p><strong>Количество:</strong> {{ task.tasks[0]?.total_quantity || '—' }}</p>
-
+    <p><strong>Готовое количество:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
     <p><strong>Материал:</strong>
       <span v-if="task.tasks[0]?.material">
         {{ task.tasks[0].material.type }} {{ task.tasks[0].material.color }} {{ task.tasks[0].material.thickness }}
@@ -126,6 +139,7 @@ const newWaste = ref(null)
 const route = useRoute()
 const router = useRouter()
 const task = ref(null)
+const quantities = ref([])
 const currentUser = ref(null)
 const productType = computed(() => {
   const product = task.value?.tasks?.[0]?.task_products?.[0]?.product
@@ -164,6 +178,11 @@ async function fetchTask(id) {
     alert('Не удалось загрузить задачу')
     router.push('/tasks')
   }
+  if (task.value?.tasks?.[0]?.task_products?.length) {
+  quantities.value = task.value.tasks[0].task_products.map(() => 0)
+} else {
+  quantities.value = []
+}
 }
 
 async function deleteTask(id) {
@@ -187,6 +206,7 @@ onMounted(() => {
   if (encrypted) {
     try {
       currentUser.value = decrypt(encrypted)
+      
     } catch (e) {
       console.error('Ошибка дешифровки пользователя:', e)
     }
@@ -286,10 +306,125 @@ async function handleFileUpload(event) {
     alert('Не удалось загрузить файлы.')
   }
 }
+async function updateTaskStatus(newStatus) {
+  const taskId = task.value.tasks[0].id
+
+  try {
+    const response = await api.patch(`/tasks/${taskId}/status?new_status=${newStatus}`)
+
+    const data = response.data
+
+    // Обновляем статус задачи
+    task.value.tasks[0].status = data.task_status
+
+    const taskWorkshops = task.value.tasks[0].workshops;
+    const responseWorkshops = response.data.workshops;
+
+    for (let i = 0; i < taskWorkshops.length; i++) {
+      const taskWorkshop = taskWorkshops[i];
+      
+      // Найти цех с таким же именем в response
+      const matchedWorkshop = responseWorkshops.find(
+        w => w.workshop_name === taskWorkshop.workshop_name
+      );
+      
+      if (matchedWorkshop) {
+        // Обновить статус
+        taskWorkshop.status = matchedWorkshop.status;
+      }
+    }
+
+  } catch (error) {
+    console.error('Ошибка обновления статуса:', error)
+    alert('Не удалось обновить статус.')
+  }
+}
+const WORKSHOP_ORDER = [
+  "Инженер",
+  "Резка",
+  "Координатка",
+  "Гибка",
+  "Прокат профилей",
+  "Прокат клямеров",
+  "Прокат кронштейнов",
+  "Гибка удлинителей кронштейнов",
+  "Покраска",
+];
+
+const canShowInWorkButton = computed(() => {
+  if (
+    !currentUser.value ||
+    !task.value ||
+    !task.value.tasks?.[0] ||
+    !task.value.tasks[0].workshops
+  ) return false;
+
+  // получаем массив имён цехов пользователя
+  const userWorkshopNames = currentUser.value.workshops.map(w => w.name);
+  if (!userWorkshopNames.length) return false;
+
+  const workshops = task.value.tasks[0].workshops;
+
+  return userWorkshopNames.some(userWorkshop => {
+    const curIndex = WORKSHOP_ORDER.indexOf(userWorkshop);
+    if (curIndex === -1) return false;
+
+    const workshopInfo = workshops.find(w => w.workshop_name === userWorkshop);
+    if (!workshopInfo) return false;
+
+    const status = workshopInfo.status;
+    if (status !== "Новая" && status !== "На удержании") return false;
+
+    // Проверяем предыдущий цех
+    if (curIndex > 0) {
+      const prevWorkshopName = WORKSHOP_ORDER[curIndex - 1];
+      const prevWorkshopInfo = workshops.find(w => w.workshop_name === prevWorkshopName);
+      if (prevWorkshopInfo && prevWorkshopInfo.status !== "Выполнена") return false;
+    }
+
+    return true;
+  });
+});
+const showQuantityInput = ref(false)
+
+async function submitQuantity() {
+  const payload = quantities.value
+    .map((qty, index) => ({
+      product_id: task.value.tasks[0].task_products[index].product.id,
+      quantity: qty,
+    }))
+    .filter(item => item.quantity > 0)  // отправляем только положительные значения
+
+  if (!payload.length) {
+    alert('Введите количество хотя бы для одного продукта.')
+    return
+  }
+
+  try {
+    // Замените URL и метод на свои
+    await api.post(`/tasks/${task.value.tasks[0].id}/add_quantity`, { task_id: task.value.tasks[0].id, quantities: payload })
+    alert('Количество успешно добавлено')
+    showQuantityInput.value = false
+
+    // Можно перезагрузить задачу или обновить локально done_quantity и т.п.
+    fetchTask(task.value.tasks[0].id)
+
+  } catch (error) {
+    console.error('Ошибка при сохранении количества:', error)
+    alert('Не удалось сохранить количество')
+  }
+}
 </script>
 
 
 <style scoped>
+.quantity-input-block {
+  margin-top: 1rem;
+}
+.quantity-input-block input {
+  margin-right: 0.5rem;
+  width: 100px;
+}
 .top-buttons {
   display: flex;
   gap: 12px;

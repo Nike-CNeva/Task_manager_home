@@ -46,11 +46,26 @@ class AsyncDatabaseService:
             return result.scalars().first()
         except SQLAlchemyError as e:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    async def get_by_field(self, model: Type[T], field_name: str, field_value: Any) -> Optional[T]:
+        
+    async def get_by_field(
+        self,
+        model: Type[T],
+        field_name: str,
+        field_value: Any,
+        *,
+        options: Optional[List[Any]] = None  # <- Добавили options
+    ) -> Optional[T]:
         try:
             field: InstrumentedAttribute[Any] = getattr(model, field_name)
-            result = await self.db.execute(select(model).where(field == field_value))
+            stmt = select(model).where(field == field_value)
+
+            if options:
+                for opt in options:
+                    stmt = stmt.options(opt)
+
+            result = await self.db.execute(stmt)
             return result.scalars().first()
+
         except SQLAlchemyError as e:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 

@@ -1,23 +1,24 @@
 import os
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile, status
 from typing import List
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from websockets import Data
 from backend.app.core.dependencies import get_current_user, get_db
 from backend.app.models.bid import Bid, Customer
 from backend.app.models.enums import CassetteTypeEnum, FileType, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
 from backend.app.models.files import Files
 from backend.app.models.product import Product
-from backend.app.models.task import Task
+from backend.app.models.task import Task, TaskProduct
 from backend.app.models.user import User
-from backend.app.models.workshop import Workshop
+from backend.app.models.workshop import WORKSHOP_ORDER, Workshop
 from backend.app.schemas.bid import BidCreate
 from backend.app.schemas.create_bid import ReferenceDataResponse
 from backend.app.schemas.customer import CustomerRead
 from backend.app.schemas.file import UploadedFileResponse
 from backend.app.schemas.product_fields import get_product_fields
-from backend.app.schemas.task import BidRead, FilesRead, MaterialUpdate
+from backend.app.schemas.task import BidRead, FilesRead, MaterialUpdate, QuantityUpdateRequest
 from backend.app.schemas.user import EmployeeOut
 from backend.app.schemas.workshop import WorkshopRead
 from backend.app.services import task_service
@@ -254,3 +255,134 @@ async def upload_file_to_task(
         file_save =  await save_file(bid_id, file, db)
         files_save.append(file_save)
     return files_save
+
+@router.patch("/tasks/{task_id}/status")
+async def update_workshop_status(
+    task_id: int,
+    new_status: StatusEnum,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Task).options(selectinload(Task.workshops)).where(Task.id == task_id)
+    )
+    task = result.scalars().first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    task_workshops = sorted(task.workshops, key=lambda w: WORKSHOP_ORDER.index(w.workshop.name))
+
+    # Получаем Enum-значения цехов пользователя
+    user_workshop_names = {w.name for w in current_user.workshops}
+
+    # Отфильтровываем TaskWorkshop, к которым у пользователя есть доступ
+    user_workshops = [w for w in task_workshops if w.workshop.name in user_workshop_names]
+
+    if not user_workshops:
+        raise HTTPException(status_code=403, detail="Нет доступа к цехам задачи")
+
+    # Находим первый доступный для пользователя цех, который не "Выполнена"
+    target_workshop = next(
+        (
+            w for w in task_workshops
+            if w.workshop.name in user_workshop_names and w.status != "Выполнена"
+        ),
+        None
+    )
+
+    if not target_workshop:
+        raise HTTPException(status_code=400, detail="Нет подходящего цеха для обновления")
+
+    target_index = task_workshops.index(target_workshop)
+
+    for prev_workshop in task_workshops[:target_index]:
+        if prev_workshop.status != "Выполнена":
+            raise HTTPException(status_code=400, detail="Предыдущие цеха не завершены")
+
+    target_workshop.status = new_status
+
+    if target_index == 0 and new_status == "В работе":
+        for w in task_workshops[1:]:
+            w.status = "На удержании"
+
+    statuses = [w.status for w in task_workshops]
+    if all(status == "Выполнена" for status in statuses):
+        task.status = "Выполнена"
+    elif any(status == "В работе" for status in statuses):
+        task.status = "В работе"
+
+    await db.commit()
+
+    return {
+        "task_status": task.status,
+        "workshops": [
+            {"id": w.id, "workshop_name": w.workshop.name, "status": w.status}
+            for w in task_workshops
+        ]
+    }
+
+@router.post("/tasks/{task_id}/add_quantity")
+async def update_task_done_quantity(
+    task_id: int,
+    quantities: QuantityUpdateRequest,
+    session: AsyncSession = Depends(get_db)
+):
+    updated_task_products = []
+
+    for item in quantities.quantities:
+        # Найти TaskProduct по task_id и product_id
+        stmt = select(TaskProduct).where(
+            TaskProduct.task_id == task_id,
+            TaskProduct.product_id == item.product_id
+        )
+        result = await session.execute(stmt)
+        task_product = result.scalar_one_or_none()
+
+        if not task_product:
+            raise HTTPException(
+                status_code=404,
+                detail=f"TaskProduct с task_id={task_id} и product_id={item.product_id} не найден"
+            )
+
+        new_done_quantity = task_product.done_quantity + item.quantity
+        if new_done_quantity > task_product.quantity:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Превышено максимальное количество для product_id={item.product_id}"
+            )
+
+        task_product.done_quantity = new_done_quantity
+        updated_task_products.append(task_product)
+
+    # Получаем задачу со связанными продуктами и цехами
+    stmt_task = select(Task).where(Task.id == task_id).options(
+        selectinload(Task.task_products),
+        selectinload(Task.workshops),
+    )
+    result = await session.execute(stmt_task)
+    task = result.scalar_one_or_none()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    progress = task.progress_percent
+
+    # Обновляем прогресс по цехам
+    for workshop in task.workshops:
+        workshop.progress_percent = progress
+
+    await session.commit()
+
+    # Ответ
+    response = [
+        {
+            "product_id": tp.product_id,
+            "done_quantity": tp.done_quantity
+        } for tp in updated_task_products
+    ]
+
+    return {
+        "updated_products": response,
+        "updated_progress_percent": progress
+    }

@@ -31,7 +31,7 @@ async def admin_users(db: AsyncSession = Depends(get_db), current_user: UserRead
             email=user.email,
             telegram=user.telegram,
             user_type=user.user_type.value,
-            workshops=[workshop.name for workshop in user.workshops],
+            workshops= user.workshops,
             is_active=user.is_active,
         )
         for user in users

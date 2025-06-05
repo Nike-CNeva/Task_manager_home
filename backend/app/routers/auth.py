@@ -3,7 +3,7 @@ from typing import Dict, Optional, Union
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from backend.app.core.dependencies import get_db
-from backend.app.schemas.user import UserBase
+from backend.app.schemas.user import UserBase, UserWithWorkshops
 from backend.app.middlewares.auth_middleware import create_auth_token, decode_auth_token, verify_password
 from backend.app.services import user_service
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,7 +39,7 @@ async def login_api(
     return JSONResponse(content={
         "auth_token": auth_token,
         "token_type": "bearer",
-        "user": UserBase.model_validate(user).model_dump()
+        "user": UserWithWorkshops.model_validate(user).model_dump()
     })
 
 

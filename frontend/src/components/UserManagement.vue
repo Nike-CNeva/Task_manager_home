@@ -33,7 +33,7 @@
                 v-for="workshop in user.workshops"
                 :key="workshop"
               >
-                {{ workshop }}
+                {{ workshop.name }}
               </span>
             </td>
             <td>

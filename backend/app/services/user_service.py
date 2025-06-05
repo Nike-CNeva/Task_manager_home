@@ -28,10 +28,13 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
     return user
 
 async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User]:
-    """Получает пользователя по логину пользователя или возвращает None."""
     db_service = AsyncDatabaseService(db)
-    user = await db_service.get_by_field(User, "username", username)  # нужно ожидать асинхронный запрос
-    return user 
+    return await db_service.get_by_field(
+        User,
+        "username",
+        username,
+        options=[selectinload(User.workshops)]  # Подгружаем цеха
+    )
 
 async def get_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> Sequence[User]:
     """Получает список пользователей с загруженными цехами."""

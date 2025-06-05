@@ -227,3 +227,10 @@ class MaterialUpdate(BaseModel):
     weight: Optional[float] = None
     waste: Optional[float] = None
 
+class QuantityItem(BaseModel):
+    product_id: int
+    quantity: int
+
+class QuantityUpdateRequest(BaseModel):
+    task_id: int
+    quantities: List[QuantityItem]

@@ -11,4 +11,15 @@ class Workshop(Base):
     # Связь Many-to-Many с Task
     task_workshops = relationship("TaskWorkshop", back_populates="workshop", cascade="all, delete-orphan")
     users = relationship("User", secondary=user_workshop_association, back_populates="workshops")
-  
+
+WORKSHOP_ORDER = [
+    "Инженер",
+    "Резка",
+    "Координатка",
+    "Гибка",
+    "Прокат профилей",
+    "Прокат клямеров",
+    "Прокат кронштейнов",
+    "Гибка удлинителей кронштейнов",
+    "Покраска",
+]
