@@ -290,13 +290,11 @@ async function submitQuantity() {
     alert('Не удалось сохранить количество')
   }
 }
-const props = defineProps({
-  task: Object
-})
+
 
 // Разбиваем файлы на блоки по 10
 const chunkedFiles = computed(() => {
-  const files = props.task.files || []
+  const files = task.files || []
   const result = []
   for (let i = 0; i < files.length; i += 10) {
     result.push(files.slice(i, i + 10))
