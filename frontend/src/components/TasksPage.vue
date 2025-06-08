@@ -185,6 +185,7 @@ function getTaskBackground(task) {
 }
 </script>
 
+
 <style scoped>
 .text-muted {
   color: #888;
