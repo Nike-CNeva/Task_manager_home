@@ -10,7 +10,22 @@
       </button>
       <button class="btn btn-secondary" @click="showWeightInput = true">Добавить вес</button>
       <button class="btn btn-secondary" @click="showWasteInput = true">Добавить отходность</button>
-      <input type="file" multiple accept="jpg, .jpeg, .png, .pdf, .nc, .xls, .xlsx, .doc, .docx, .dxf, .dwg" @change="handleFileUpload" />
+      <div>
+        <!-- Скрытый input -->
+        <input
+          ref="fileInput"
+          type="file"
+          multiple
+          accept=".jpg,.jpeg,.png,.pdf,.nc,.xls,.xlsx,.doc,.docx,.dxf,.dwg"
+          @change="handleFileUpload"
+          style="display: none"
+        />
+
+        <!-- Кастомная кнопка -->
+        <button class="custom-upload-btn" @click="triggerFileInput">
+          📎 Добавить файлы
+        </button>
+      </div>
     </div>
     <div v-if="showQuantityInput" class="quantity-input-block">
       <label>Введите количество готовой продукции для каждого продукта:</label>
@@ -145,7 +160,11 @@ const productType = computed(() => {
   const product = task.value?.tasks?.[0]?.task_products?.[0]?.product
   return product?.type || null
 })
+const fileInput = ref(null);
 
+const triggerFileInput = () => {
+  fileInput.value.click();
+};
 function getProductFieldValue(taskProduct, fieldName) {
   const product = taskProduct.product
   const value =
@@ -491,5 +510,19 @@ textarea {
 
 .btn-delete-comment:hover {
   background-color: darkred;
+}
+.custom-upload-btn {
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  padding: 0.5em 1em;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.custom-upload-btn:hover {
+  background-color: #4338ca;
 }
 </style>
