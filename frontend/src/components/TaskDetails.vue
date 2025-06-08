@@ -290,6 +290,19 @@ async function submitQuantity() {
     alert('Не удалось сохранить количество')
   }
 }
+const props = defineProps({
+  task: Object
+})
+
+// Разбиваем файлы на блоки по 10
+const chunkedFiles = computed(() => {
+  const files = props.task.files || []
+  const result = []
+  for (let i = 0; i < files.length; i += 10) {
+    result.push(files.slice(i, i + 10))
+  }
+  return result
+})
 </script>
 
 <template>
@@ -383,11 +396,19 @@ async function submitQuantity() {
 
       <div v-if="task.files?.length">
         <h3>📁 Файлы:</h3>
-        <ul>
-          <li v-for="file in task.files" :key="file.id">
-            <a :href="file.url" target="_blank">{{ file.filename }}</a>
-          </li>
-        </ul>
+        <div class="file-grid">
+          <div
+            v-for="(fileChunk, index) in chunkedFiles"
+            :key="index"
+            class="file-column"
+          >
+            <ul>
+              <li v-for="file in fileChunk" :key="file.id">
+                <a :href="file.url" target="_blank">{{ file.filename }}</a>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
       <p v-else>Файлы не прикреплены.</p>
     </main>
@@ -422,6 +443,21 @@ async function submitQuantity() {
 </template>
 
 <style scoped>
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.file-column ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.file-column li {
+  margin-bottom: 6px;
+}
 .task-container {
   display: flex;
   flex-direction: row;
