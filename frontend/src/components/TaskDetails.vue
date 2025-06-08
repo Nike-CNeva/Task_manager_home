@@ -22,7 +22,7 @@
         />
 
         <!-- Кастомная кнопка -->
-        <button class="custom-upload-btn" @click="triggerFileInput">
+        <button class="btn btn-secondary" @click="triggerFileInput">
           📎 Добавить файлы
         </button>
       </div>
@@ -511,18 +511,5 @@ textarea {
 .btn-delete-comment:hover {
   background-color: darkred;
 }
-.custom-upload-btn {
-  background-color: #4f46e5;
-  color: white;
-  border: none;
-  padding: 0.5em 1em;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
 
-.custom-upload-btn:hover {
-  background-color: #4338ca;
-}
 </style>
