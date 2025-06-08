@@ -174,11 +174,18 @@ function getTaskBackground(task) {
   if (!task) return '#ffffff'
 
   const status = task.status?.toLowerCase()?.trim()
-  console.log('status:', status)
-
   if (status !== 'в работе' && status !== 'выполнена') return '#ffffff'
 
-  return 'lightgreen' // чтобы сразу видеть эффект
+  const progress = task.progress_percent || 0
+
+  const workshops = task.workshops || []
+  const doneCount = workshops.filter(ws => ws.status?.toLowerCase()?.trim() === 'выполнена').length
+  const totalCount = workshops.length
+  const workshopPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0
+
+  const total = (progress * 0.6 + workshopPercent * 0.4)
+  const hue = 60 + (total / 100) * 60
+  return `hsl(${hue}, 100%, 85%)`
 }
 </script>
 
