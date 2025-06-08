@@ -45,7 +45,7 @@
             </thead>
             <tbody>
               <template v-for="task in bid.tasks" :key="task.id">
-                <tr style="background-color: #f8f9fa;">
+                <tr :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">
                   <td colspan="12" @click="goToTask(task.id)" style="cursor: pointer;">
                     <strong>Задача №{{ task.id }}</strong> — Всего: {{ task.total_quantity }}, Выполнено: {{ task.done_quantity }} ({{ task.progress_percent }}%)
                   </td>
@@ -164,6 +164,23 @@ function getBidBackground(bid) {
 
   // Цвет от жёлтого (60°) к зелёному (120°) в HSL
   const hue = 60 + (percent / 100) * 60
+  return `hsl(${hue}, 100%, 85%)`
+}
+function getTaskBackground(task) {
+  if (!task || task.status === 'не начата') return '#ffffff'
+
+  const progress = task.progress_percent || 0
+
+  const workshops = task.workshops || []
+  const doneCount = workshops.filter(ws => ws.status === 'завершено').length
+  const totalCount = workshops.length
+  const workshopPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0
+
+  // Смешанный процент: 60% прогресс задачи + 40% завершение по цехам
+  const total = (progress * 0.6 + workshopPercent * 0.4)
+
+  // Цвет от жёлтого (60°) до зелёного (120°)
+  const hue = 60 + (total / 100) * 60
   return `hsl(${hue}, 100%, 85%)`
 }
 </script>
