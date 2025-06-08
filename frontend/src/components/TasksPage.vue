@@ -171,8 +171,14 @@ function getBidBackground(bid) {
   return `hsl(${hue}, 100%, 85%)`
 }
 function getTaskBackground(task) {
-  console.log('task status:', task.status)
-  return 'lightgreen'
+  if (!task) return '#ffffff'
+
+  const status = task.status?.toLowerCase()?.trim()
+  console.log('status:', status)
+
+  if (status !== 'в работе' && status !== 'выполнена') return '#ffffff'
+
+  return 'lightgreen' // чтобы сразу видеть эффект
 }
 </script>
 
