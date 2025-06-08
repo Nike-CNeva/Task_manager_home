@@ -55,7 +55,7 @@
                   v-for="(tp, i) in task.task_products || []"
                   :key="`${task.id}-${i}`"
                   @click="goToTask(task.id)"
-                  style="cursor: pointer;"
+                  :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }"
                 >
                   <td>{{ tp.product.type }} — {{ tp.product.cassette?.description || '—' }}</td>
                   <td>{{ tp.color }}</td>
@@ -137,7 +137,7 @@ function getBidBackground(bid) {
 
   if (allTasks.length === 0) return '#ffffff' // нет задач
 
-  const allStarted = allTasks.some(task => task.status !== 'не начата')
+  const allStarted = allTasks.some(task => task.status !== 'Новая')
   if (!allStarted) return '#ffffff' // все задачи не начаты
 
   let totalProgress = 0
@@ -149,7 +149,7 @@ function getBidBackground(bid) {
 
     // считаем процент выполненных цехов
     const workshops = task.workshops || []
-    const doneWorkshops = workshops.filter(ws => ws.status === 'завершено').length
+    const doneWorkshops = workshops.filter(ws => ws.status === 'Выполнена').length
     if (workshops.length > 0) {
       workshopProgress += (doneWorkshops / workshops.length) * 100
       workshopCount++
@@ -167,12 +167,12 @@ function getBidBackground(bid) {
   return `hsl(${hue}, 100%, 85%)`
 }
 function getTaskBackground(task) {
-  if (!task || task.status === 'не начата') return '#ffffff'
-
+  if (!task || task.status === 'Новая') return '#ffffff'
+  console.log(task)
   const progress = task.progress_percent || 0
 
   const workshops = task.workshops || []
-  const doneCount = workshops.filter(ws => ws.status === 'завершено').length
+  const doneCount = workshops.filter(ws => ws.status === 'Выполнена').length
   const totalCount = workshops.length
   const workshopPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0
 
