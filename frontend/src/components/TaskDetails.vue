@@ -509,7 +509,7 @@ textarea {
   border: 1px solid #ccc;
 }
 .btn-primary {
-  background-color: #7ea5be;
+  background-color: #adc2cc;
   color: black;
 }
 .btn-secondary {
@@ -517,7 +517,7 @@ textarea {
   color: black;
 }
 .btn-success {
-  background-color: #93c9bd;
+  background-color: #adccc4;
   color: black;
 }
 .btn-warning {
@@ -546,7 +546,5 @@ textarea {
   cursor: pointer;
   height: 24px;
 }
-.btn-delete-comment:hover {
-  background-color: rgb(255, 117, 117);
-}
+
 </style>
