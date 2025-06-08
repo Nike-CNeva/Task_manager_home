@@ -167,21 +167,8 @@ function getBidBackground(bid) {
   return `hsl(${hue}, 100%, 85%)`
 }
 function getTaskBackground(task) {
-  if (!task || task.status === 'Новая') return '#ffffff'
-  console.log(task)
-  const progress = task.progress_percent || 0
-
-  const workshops = task.workshops || []
-  const doneCount = workshops.filter(ws => ws.status === 'Выполнена').length
-  const totalCount = workshops.length
-  const workshopPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0
-
-  // Смешанный процент: 60% прогресс задачи + 40% завершение по цехам
-  const total = (progress * 0.6 + workshopPercent * 0.4)
-
-  // Цвет от жёлтого (60°) до зелёного (120°)
-  const hue = 60 + (total / 100) * 60
-  return `hsl(${hue}, 100%, 85%)`
+  console.log('task status:', task.status)
+  return 'lightgreen'
 }
 </script>
 
