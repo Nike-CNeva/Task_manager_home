@@ -45,8 +45,12 @@
             </thead>
             <tbody>
               <template v-for="task in bid.tasks" :key="task.id">
-                <tr :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">
-                  <td colspan="12" @click="goToTask(task.id)" style="cursor: pointer;">
+                <tr>
+                  <td
+                    colspan="12"
+                    @click="goToTask(task.id)"
+                    :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }"
+                  >
                     <strong>Задача №{{ task.id }}</strong> — Всего: {{ task.total_quantity }}, Выполнено: {{ task.done_quantity }} ({{ task.progress_percent }}%)
                   </td>
                 </tr>
