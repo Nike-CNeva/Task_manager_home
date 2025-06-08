@@ -59,19 +59,19 @@
                   v-for="(tp, i) in task.task_products || []"
                   :key="`${task.id}-${i}`"
                   @click="goToTask(task.id)"
-                  :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }"
+                  style="cursor: pointer;"
                 >
-                  <td>{{ tp.product.type }} — {{ tp.product.cassette?.description || '—' }}</td>
-                  <td>{{ tp.color }}</td>
-                  <td>{{ tp.quantity }}</td>
-                  <td>{{ tp.painting ? 'Да' : 'Нет' }}</td>
-                  <td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">{{ tp.product.type }} — {{ tp.product.cassette?.description || '—' }}</td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">{{ tp.color }}</td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">{{ tp.quantity }}</td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">{{ tp.painting ? 'Да' : 'Нет' }}</td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">
                     <template v-if="task.material">
                       {{ task.material.type }} {{ task.material.color }} {{ task.material.thickness }}
                     </template>
                     <span v-else class="text-muted">—</span>
                   </td>
-                  <td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">
                     <ul v-if="task.sheets?.length" class="mb-0 ps-3">
                       <li v-for="sheet in task.sheets" :key="sheet.id">
                         {{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}
@@ -79,10 +79,10 @@
                     </ul>
                     <span v-else class="text-muted">—</span>
                   </td>
-                  <td>{{ task.urgency }}</td>
-                  <td>{{ task.progress_percent }}%</td>
-                  <td>{{ task.status }}</td>
-                  <td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">{{ task.urgency }}</td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">{{ task.progress_percent }}%</td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">{{ task.status }}</td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">
                     <ul v-if="task.workshops?.length" class="mb-0 ps-3">
                       <li v-for="ws in task.workshops" :key="ws.workshop_name">
                         {{ ws.workshop_name }}: {{ ws.status }}
@@ -90,8 +90,8 @@
                     </ul>
                     <span v-else class="text-muted">—</span>
                   </td>
-                  <td>{{ formatDate(task.created_at) }}</td>
-                  <td>{{ formatDate(task.completed_at) }}</td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">{{ formatDate(task.created_at) }}</td>
+                  <td :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }">{{ formatDate(task.completed_at) }}</td>
                 </tr>
               </template>
             </tbody>
@@ -171,8 +171,21 @@ function getBidBackground(bid) {
   return `hsl(${hue}, 100%, 85%)`
 }
 function getTaskBackground(task) {
-  console.log('task status:', task.status)
-  return 'lightgreen'
+  if (!task) return '#ffffff'
+
+  const status = task.status?.toLowerCase()
+  if (status !== 'В работе' && status !== 'Выполнена') return '#ffffff'
+
+  const progress = task.progress_percent || 0
+
+  const workshops = task.workshops || []
+  const doneCount = workshops.filter(ws => ws.status?.toLowerCase() === 'Выполнена').length
+  const totalCount = workshops.length
+  const workshopPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0
+
+  const total = (progress * 0.6 + workshopPercent * 0.4)
+  const hue = 60 + (total / 100) * 60
+  return `hsl(${hue}, 100%, 85%)`
 }
 </script>
 
