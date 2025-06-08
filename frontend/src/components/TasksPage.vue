@@ -24,7 +24,6 @@
         >
           <strong>Заявка №{{ bid.task_number }}</strong> — {{ bid.customer.name }} (Менеджер: {{ bid.manager }})
         </div>
-      
         <!-- Список задач -->
         <div v-show="expandedIndex === index" class="p-3">
           <table class="table table-bordered table-sm">
@@ -132,6 +131,40 @@ function goToTask(id) {
 
 function toggle(index) {
   expandedIndex.value = expandedIndex.value === index ? null : index
+}
+function getBidBackground(bid) {
+  let allTasks = bid.tasks || []
+
+  if (allTasks.length === 0) return '#ffffff' // нет задач
+
+  const allStarted = allTasks.some(task => task.status !== 'не начата')
+  if (!allStarted) return '#ffffff' // все задачи не начаты
+
+  let totalProgress = 0
+  let workshopProgress = 0
+  let workshopCount = 0
+
+  allTasks.forEach(task => {
+    totalProgress += task.progress_percent || 0
+
+    // считаем процент выполненных цехов
+    const workshops = task.workshops || []
+    const doneWorkshops = workshops.filter(ws => ws.status === 'завершено').length
+    if (workshops.length > 0) {
+      workshopProgress += (doneWorkshops / workshops.length) * 100
+      workshopCount++
+    }
+  })
+
+  const avgProgress = totalProgress / allTasks.length
+  const avgWorkshop = workshopCount > 0 ? workshopProgress / workshopCount : 0
+
+  // Итоговый процент: смешанный по задачам и цехам
+  const percent = (avgProgress * 0.6 + avgWorkshop * 0.4)
+
+  // Цвет от жёлтого (60°) к зелёному (120°) в HSL
+  const hue = 60 + (percent / 100) * 60
+  return `hsl(${hue}, 100%, 85%)`
 }
 </script>
 
