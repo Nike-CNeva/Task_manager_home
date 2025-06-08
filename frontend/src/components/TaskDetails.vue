@@ -394,7 +394,7 @@ const chunkedFiles = computed(() => {
       <p><strong>Дата создания:</strong> {{ formatDate(task.tasks[0]?.created_at) }}</p>
       <p><strong>Дата завершения:</strong> {{ formatDate(task.tasks[0]?.completed_at) }}</p>
 
-      <div v-if="task.files?.length">
+      <div v-if="task?.files?.length">
         <h3>📁 Файлы:</h3>
         <div class="file-grid">
           <div
