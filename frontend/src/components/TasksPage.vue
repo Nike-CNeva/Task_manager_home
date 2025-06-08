@@ -15,11 +15,16 @@
         :key="bid.id"
         class="mb-3 border rounded"
       >
-        <!-- Заголовок заявки -->
-        <div class="p-3 bg-light" @click="toggle(index)" style="cursor: pointer;">
+        <!-- Заголовок заявки с динамичным цветом -->
+        <div
+          class="p-3"
+          :style="{ backgroundColor: getBidBackground(bid) }"
+          @click="toggle(index)"
+          style="cursor: pointer;"
+        >
           <strong>Заявка №{{ bid.task_number }}</strong> — {{ bid.customer.name }} (Менеджер: {{ bid.manager }})
         </div>
-
+      
         <!-- Список задач -->
         <div v-show="expandedIndex === index" class="p-3">
           <table class="table table-bordered table-sm">
