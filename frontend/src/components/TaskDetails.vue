@@ -509,15 +509,15 @@ textarea {
   border: 1px solid #ccc;
 }
 .btn-primary {
-  background-color: #adc2cc;
+  background-color: #adc7df;
   color: black;
 }
 .btn-secondary {
-  background-color: #e6dde4;
+  background-color: #cfcfcf;
   color: black;
 }
 .btn-success {
-  background-color: #adccc4;
+  background-color: #aad4c8;
   color: black;
 }
 .btn-warning {
