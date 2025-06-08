@@ -294,7 +294,7 @@ async function submitQuantity() {
 
 // Разбиваем файлы на блоки по 10
 const chunkedFiles = computed(() => {
-  const files = task.value.files || []
+  const files = task.value.files.filename || []
   const result = []
   for (let i = 0; i < files.length; i += 10) {
     result.push(files.slice(i, i + 10))
@@ -309,20 +309,12 @@ const chunkedFiles = computed(() => {
     <aside class="sidebar">
       <h2>Управление 🛠️</h2>
       <button class="btn btn-secondary" @click="goBack">⬅️ Назад</button>
+
       <button v-if="canShowInWorkButton" class="btn btn-warning" @click="updateTaskStatus('В работе')">🚧 В работу</button>
+
       <button class="btn btn-success" @click="updateTaskStatus('Выполнена')">✅ Выполнена</button>
+
       <button class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">➕ Кол-во</button>
-      <button class="btn btn-secondary" @click="showWeightInput = true">⚖️ Вес</button>
-      <button class="btn btn-secondary" @click="showWasteInput = true">♻️ Отходы</button>
-      <button class="btn btn-secondary" @click="triggerFileInput">📎 Файлы</button>
-      <input ref="fileInput" type="file" multiple style="display: none" @change="handleFileUpload" />
-      <button class="btn btn-danger" @click="() => deleteTask(task.tasks[0].id)">🗑️ Удалить</button>
-    </aside>
-
-    <!-- Основной блок с деталями -->
-    <main class="details">
-      <h2>Детали задачи №{{ task.task_number }}</h2>
-
       <div v-if="showQuantityInput" class="input-block">
         <label>Введите количество готовой продукции:</label>
         <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="tp.id">
@@ -332,8 +324,34 @@ const chunkedFiles = computed(() => {
         <button class="btn btn-success" @click="submitQuantity">Сохранить</button>
       </div>
 
+      <button class="btn btn-secondary" @click="showWeightInput = true">⚖️ Вес</button>
+      <div v-if="showWeightInput" class="input-block">
+        <label>Введите вес (в кг):</label>
+        <input type="number" v-model="newWeight" />
+        <button class="btn btn-primary" @click="updateMaterialField('weight', newWeight)">Сохранить</button>
+      </div>
+
+      <button class="btn btn-secondary" @click="showWasteInput = true">♻️ Отходы</button>
+      <div v-if="showWasteInput" class="input-block">
+        <label>Введите отходность (%):</label>
+        <input type="number" v-model="newWaste" />
+        <button class="btn btn-primary" @click="updateMaterialField('waste', newWaste)">Сохранить</button>
+      </div>
+
+      <button class="btn btn-secondary" @click="triggerFileInput">📎 Файлы</button>
+      <input ref="fileInput" type="file" multiple style="display: none" @change="handleFileUpload" />
+
+      <button class="btn btn-danger" @click="() => deleteTask(task.tasks[0].id)">🗑️ Удалить</button>
+    </aside>
+
+    <!-- Основной блок с деталями -->
+    <main class="details">
+      <h2>Детали задачи №{{ task.task_number }}</h2>
+
       <p><strong>Заказчик:</strong> {{ task.customer?.name || '—' }}</p>
+
       <p><strong>Менеджер:</strong> {{ task.manager || '—' }}</p>
+
       <p><strong>Тип продукции:</strong> {{ productType || '—' }}</p>
 
       <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="index" class="subtask-block">
@@ -346,6 +364,7 @@ const chunkedFiles = computed(() => {
       </div>
 
       <p><strong>Количество:</strong> {{ task.tasks[0]?.total_quantity || '—' }}</p>
+
       <p><strong>Готово:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
 
       <p><strong>Материал:</strong>
@@ -355,19 +374,8 @@ const chunkedFiles = computed(() => {
         <span v-else>—</span>
       </p>
 
-      <div v-if="showWeightInput" class="input-block">
-        <label>Введите вес (в кг):</label>
-        <input type="number" v-model="newWeight" />
-        <button class="btn btn-primary" @click="updateMaterialField('weight', newWeight)">Сохранить</button>
-      </div>
-
-      <div v-if="showWasteInput" class="input-block">
-        <label>Введите отходность (%):</label>
-        <input type="number" v-model="newWaste" />
-        <button class="btn btn-primary" @click="updateMaterialField('waste', newWaste)">Сохранить</button>
-      </div>
-
       <p><strong>Вес:</strong> {{ task.tasks[0]?.material?.weight ?? '—' }} кг</p>
+
       <p><strong>Отходность:</strong> {{ task.tasks[0]?.material?.waste ?? '—' }} %</p>
 
       <p><strong>Листы:</strong></p>
@@ -379,6 +387,7 @@ const chunkedFiles = computed(() => {
       <p v-else>—</p>
 
       <p><strong>Срочность:</strong> {{ task.tasks[0]?.urgency || '—' }}</p>
+
       <p><strong>Статус:</strong> {{ task.tasks[0]?.status || '—' }}</p>
 
       <p><strong>Статус цехов:</strong></p>
@@ -390,6 +399,7 @@ const chunkedFiles = computed(() => {
       <p v-else>—</p>
 
       <p><strong>Дата создания:</strong> {{ formatDate(task.tasks[0]?.created_at) }}</p>
+
       <p><strong>Дата завершения:</strong> {{ formatDate(task.tasks[0]?.completed_at) }}</p>
 
       <div v-if="task?.files?.length">
@@ -499,23 +509,23 @@ textarea {
   border: 1px solid #ccc;
 }
 .btn-primary {
-  background-color: #007bff;
+  background-color: #7abaff;
   color: white;
 }
 .btn-secondary {
-  background-color: #6c757d;
+  background-color: #b6b6b6;
   color: white;
 }
 .btn-success {
-  background-color: #28a745;
+  background-color: #96fcae;
   color: white;
 }
 .btn-warning {
-  background-color: #ffc107;
+  background-color: #ffe9a7;
   color: black;
 }
 .btn-danger {
-  background-color: red;
+  background-color: rgb(255, 162, 162);
   color: white;
 }
 .comment-item {
@@ -527,7 +537,7 @@ textarea {
   align-items: flex-start;
 }
 .btn-delete-comment {
-  background-color: red;
+  background-color: rgb(255, 162, 162);
   color: white;
   font-size: 12px;
   padding: 4px 6px;
@@ -537,6 +547,6 @@ textarea {
   height: 24px;
 }
 .btn-delete-comment:hover {
-  background-color: darkred;
+  background-color: rgb(255, 117, 117);
 }
 </style>
