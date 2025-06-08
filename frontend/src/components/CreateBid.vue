@@ -57,7 +57,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import ProductForm from './ProductForm.vue'
 import api from '@/utils/axios'
-
+import { useRouter } from 'vue-router'
+const router = useRouter()
 const form = reactive({
   task_number: '',
   customer: '',
