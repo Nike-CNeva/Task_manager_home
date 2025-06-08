@@ -294,7 +294,7 @@ async function submitQuantity() {
 
 // Разбиваем файлы на блоки по 10
 const chunkedFiles = computed(() => {
-  const files = task.value.files.filename || []
+  const files = task.value.files || []
   const result = []
   for (let i = 0; i < files.length; i += 10) {
     result.push(files.slice(i, i + 10))
