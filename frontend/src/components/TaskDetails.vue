@@ -294,7 +294,7 @@ async function submitQuantity() {
 
 // Разбиваем файлы на блоки по 10
 const chunkedFiles = computed(() => {
-  const files = task.value.files.filename || []
+  const files = task.value.files || []
   const result = []
   for (let i = 0; i < files.length; i += 10) {
     result.push(files.slice(i, i + 10))
@@ -509,24 +509,24 @@ textarea {
   border: 1px solid #ccc;
 }
 .btn-primary {
-  background-color: #7abaff;
-  color: white;
+  background-color: #7ea5be;
+  color: black;
 }
 .btn-secondary {
-  background-color: #b6b6b6;
-  color: white;
+  background-color: #e6dde4;
+  color: black;
 }
 .btn-success {
-  background-color: #96fcae;
-  color: white;
+  background-color: #93c9bd;
+  color: black;
 }
 .btn-warning {
-  background-color: #ffe9a7;
+  background-color: #ffefc7;
   color: black;
 }
 .btn-danger {
-  background-color: rgb(255, 162, 162);
-  color: white;
+  background-color: rgb(239,161,140);
+  color: black;
 }
 .comment-item {
   margin-bottom: 12px;
@@ -537,7 +537,7 @@ textarea {
   align-items: flex-start;
 }
 .btn-delete-comment {
-  background-color: rgb(255, 162, 162);
+  background-color: rgb(239,161,140);
   color: white;
   font-size: 12px;
   padding: 4px 6px;
