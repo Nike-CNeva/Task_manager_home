@@ -11,8 +11,10 @@ class Material(Base):
     thickness: Mapped[MaterialThicknessEnum] = mapped_column(SQLEnum(MaterialThicknessEnum), nullable=False)
     color: Mapped[str] = mapped_column(String(50), nullable=True)
     waste: Mapped[float] = mapped_column(nullable=True)
-    weight: Mapped[float] = mapped_column(nullable=True)
+    weight: Mapped[int] = mapped_column(ForeignKey("waight.id", ondelete="CASCADE"), nullable=True)
     tasks = relationship("Task", back_populates="material", uselist=False)
+    weight = relationship("Waight", back_populates="material", cascade="all, delete-orphan", passive_deletes=True)
+
 
 # Additional Tables
 class Sheets(Base):
@@ -24,3 +26,10 @@ class Sheets(Base):
     quantity: Mapped[int] = mapped_column(nullable=False)
     # Обратная связь One-to-Many
     task = relationship("Task", back_populates="sheets")
+
+class Weight(Base):
+    __tablename__ = "weight"
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    weight: Mapped[float] = mapped_column(nullable=False)
+    from_waste: Mapped[bool] = mapped_column(Boolean, default=False)
+    material = relationship("Material", back_populates="weight")

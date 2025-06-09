@@ -59,7 +59,7 @@ class TaskProduct(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("task.id", ondelete="CASCADE"))
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
-
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
     color: Mapped[str] = mapped_column(String(50), nullable=True)
     painting: Mapped[bool] = mapped_column(Boolean, default=False)
     quantity: Mapped[int]
