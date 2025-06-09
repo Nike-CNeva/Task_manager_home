@@ -126,12 +126,12 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
                 TaskWorkshopRead(
                     workshop_name=tw.workshop.name,
                     status=tw.status,
-                    progress_percent=tw.progress_percent
+                    progress_percent=int(tw.progress_percent)
                 ) for tw in task.workshops
             ],
             total_quantity=task.total_quantity,
             done_quantity=task.done_quantity,
-            progress_percent=task.progress_percent,
+            progress_percent=int(task.progress_percent),
             task_products=task_products,
         )
 
@@ -153,7 +153,7 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
             ),
             status=bid_obj.status,
             tasks=[t for _, t in task_group],
-            progress_percent=progress
+            progress_percent=int(progress)
         )
         bid_reads.append(bid_read)
 

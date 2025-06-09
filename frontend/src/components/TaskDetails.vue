@@ -1,132 +1,4 @@
-<template>
-  <div v-if="task">
-    <h2>Детали задачи №{{ task.task_number }}</h2>
-    <div class="top-buttons">
-      <button class="btn btn-secondary" @click="goBack">← Назад к списку задач</button>
-      <button v-if="canShowInWorkButton" class="btn btn-warning" @click="updateTaskStatus('В работе')">В работу</button>
-      <button class="btn btn-success" @click="updateTaskStatus('Выполнена')">Выполнена</button>
-      <button class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">
-        Добавить количество
-      </button>
-      <button class="btn btn-secondary" @click="showWeightInput = true">Добавить вес</button>
-      <button class="btn btn-secondary" @click="showWasteInput = true">Добавить отходность</button>
-      <input type="file" multiple @change="handleFileUpload" />
-    </div>
-    <div v-if="showQuantityInput" class="quantity-input-block">
-      <label>Введите количество готовой продукции для каждого продукта:</label>
-      <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="tp.id" class="quantity-for-product">
-        <p><strong>Продукт №{{ index + 1 }} (ID: {{ tp.id }})</strong></p>
-        <input type="number" v-model.number="quantities[index]" min="0" />
-      </div>
-      <button class="btn btn-success" @click="submitQuantity">Сохранить количество</button>
-    </div>
-    <p><strong>Заказчик:</strong> {{ task.customer?.name || '—' }}</p>
-    <p><strong>Менеджер:</strong> {{ task.manager || '—' }}</p>
-    <p><strong>Тип продукции:</strong> {{ productType || '—' }}</p>
 
-    <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="index" class="subtask-block">
-      <h3>Продукт №{{ index + 1 }}</h3>
-      <ul v-if="tp.product_fields?.length">
-        <li v-for="field in tp.product_fields" :key="field.name">
-          <strong>{{ field.label }}:</strong> {{ getProductFieldValue(tp, field.name) }}
-        </li>
-      </ul>
-    </div>
-
-    <p><strong>Количество:</strong> {{ task.tasks[0]?.total_quantity || '—' }}</p>
-    <p><strong>Готовое количество:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
-    <p><strong>Материал:</strong>
-      <span v-if="task.tasks[0]?.material">
-        {{ task.tasks[0].material.type }} {{ task.tasks[0].material.color }} {{ task.tasks[0].material.thickness }}
-      </span>
-      <span v-else>—</span>
-    </p>
-    <p>
-      <strong>Вес:</strong>
-      {{ task.tasks[0]?.material?.weight ?? '—' }} кг
-    </p>
-    <div v-if="showWeightInput">
-      <label>Введите вес (в кг):</label>
-      <input type="number" v-model="newWeight" />
-      <button class="btn btn-primary" @click="updateMaterialField('weight', newWeight)">Сохранить</button>
-    </div>
-    <p>
-      <strong>Отходность:</strong>
-      {{ task.tasks[0]?.material?.waste ?? '—' }} %
-    </p>
-    <div v-if="showWasteInput">
-      <label>Введите отходность (%):</label>
-      <input type="number" v-model="newWaste" />
-      <button class="btn btn-primary" @click="updateMaterialField('waste', newWaste)">Сохранить</button>
-    </div>
-    <p><strong>Листы:</strong></p>
-    <ul v-if="task.tasks[0]?.sheets?.length">
-      <li v-for="sheet in task.tasks[0].sheets" :key="sheet.id">
-        {{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}
-      </li>
-    </ul>
-    <p v-else>—</p>
-
-    <p><strong>Срочность:</strong> {{ task.tasks[0]?.urgency || '—' }}</p>
-    <p><strong>Статус:</strong> {{ task.tasks[0]?.status || '—' }}</p>
-
-    <p><strong>Статус цехов:</strong></p>
-    <ul v-if="task.tasks[0]?.workshops?.length">
-      <li v-for="ws in task.tasks[0].workshops" :key="ws.workshop_name">
-        {{ ws.workshop_name }}: {{ ws.status }}
-      </li>
-    </ul>
-    <p v-else>—</p>
-
-    <p><strong>Дата создания:</strong> {{ formatDate(task.tasks[0]?.created_at) }}</p>
-    <p><strong>Дата завершения:</strong> {{ formatDate(task.tasks[0]?.completed_at) }}</p>
-        <div v-if="task.files?.length">
-      <h3>Файлы:</h3>
-      <ul>
-        <li v-for="file in task.files" :key="file.id">
-          <a :href="file.url" target="_blank">{{ file.filename }}</a>
-        </li>
-      </ul>
-    </div>
-    <p v-else>Файлы не прикреплены.</p>
-    <!-- Комментарии -->
-      <h3>Комментарии:</h3>
-    <div v-if="task.comments?.length">
-
-      <ul>
-        <li v-for="comment in task.comments" :key="comment.id" class="comment-item">
-          <div class="comment-header">
-            <div class="comment-content">
-              <p><strong>Автор:</strong> {{ comment.user.firstname }} {{ comment.user.name }} — {{ formatDate(comment.created_at) }}</p>
-              <p>{{ comment.content }}</p>
-            </div>
-            <button
-              v-if="canDeleteComment(comment)"
-              @click="deleteComment(comment.id)"
-              class="btn-delete-comment"
-            >
-              ✕
-            </button>
-          </div>
-        </li>
-      </ul>
-    </div>
-    <p v-else>Комментариев пока нет.</p>
-
-    <!-- Добавление нового комментария -->
-    <div class="comment-form">
-      <h3>Добавить комментарий</h3>
-      <textarea v-model="newComment" rows="3" placeholder="Введите комментарий..."></textarea>
-      <button class="btn btn-primary" @click="submitComment">Отправить</button>
-    </div>
-      <button class="btn btn-danger" @click="() => deleteTask(task.tasks[0].id)">Удалить задачу</button>
-
-  </div>
-
-  <div v-else>
-    <p>Загрузка задачи...</p>
-  </div>
-</template>
 <script setup>
 import { decrypt } from '@/utils/crypto'
 import { ref, onMounted, computed } from 'vue'
@@ -145,7 +17,11 @@ const productType = computed(() => {
   const product = task.value?.tasks?.[0]?.task_products?.[0]?.product
   return product?.type || null
 })
+const fileInput = ref(null);
 
+const triggerFileInput = () => {
+  fileInput.value.click();
+};
 function getProductFieldValue(taskProduct, fieldName) {
   const product = taskProduct.product
   const value =
@@ -414,47 +290,216 @@ async function submitQuantity() {
     alert('Не удалось сохранить количество')
   }
 }
+
+
+// Разбиваем файлы на блоки по 10
+const chunkedFiles = computed(() => {
+  const files = task.value.files || []
+  const result = []
+  for (let i = 0; i < files.length; i += 10) {
+    result.push(files.slice(i, i + 10))
+  }
+  return result
+})
 </script>
 
+<template>
+  <div v-if="task" class="task-container">
+    <!-- Боковая панель управления -->
+    <aside class="sidebar">
+      <h2>Управление 🛠️</h2>
+      <button class="btn btn-secondary" @click="goBack">⬅️ Назад</button>
+
+      <button v-if="canShowInWorkButton" class="btn btn-warning" @click="updateTaskStatus('В работе')">🚧 В работу</button>
+
+      <button class="btn btn-success" @click="updateTaskStatus('Выполнена')">✅ Выполнена</button>
+
+      <button class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">➕ Кол-во</button>
+      <div v-if="showQuantityInput" class="input-block">
+        <label>Введите количество готовой продукции:</label>
+        <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="tp.id">
+          <p><strong>Продукт №{{ index + 1 }}</strong></p>
+          <input type="number" v-model.number="quantities[index]" min="0" />
+        </div>
+        <button class="btn btn-success" @click="submitQuantity">Сохранить</button>
+      </div>
+
+      <button class="btn btn-secondary" @click="showWeightInput = true">⚖️ Вес</button>
+      <div v-if="showWeightInput" class="input-block">
+        <label>Введите вес (в кг):</label>
+        <input type="number" v-model="newWeight" />
+        <button class="btn btn-primary" @click="updateMaterialField('weight', newWeight)">Сохранить</button>
+      </div>
+
+      <button class="btn btn-secondary" @click="showWasteInput = true">♻️ Отходы</button>
+      <div v-if="showWasteInput" class="input-block">
+        <label>Введите отходность (%):</label>
+        <input type="number" v-model="newWaste" />
+        <button class="btn btn-primary" @click="updateMaterialField('waste', newWaste)">Сохранить</button>
+      </div>
+
+      <button class="btn btn-secondary" @click="triggerFileInput">📎 Файлы</button>
+      <input ref="fileInput" type="file" multiple style="display: none" @change="handleFileUpload" />
+
+      <button class="btn btn-danger" @click="() => deleteTask(task.tasks[0].id)">🗑️ Удалить</button>
+    </aside>
+
+    <!-- Основной блок с деталями -->
+    <main class="details">
+      <h2>Детали задачи №{{ task.task_number }}</h2>
+
+      <p><strong>Заказчик:</strong> {{ task.customer?.name || '—' }}</p>
+
+      <p><strong>Менеджер:</strong> {{ task.manager || '—' }}</p>
+
+      <p><strong>Тип продукции:</strong> {{ productType || '—' }}</p>
+
+      <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="index" class="subtask-block">
+        <h3>Продукт №{{ index + 1 }}</h3>
+        <ul v-if="tp.product_fields?.length">
+          <li v-for="field in tp.product_fields" :key="field.name">
+            <strong>{{ field.label }}:</strong> {{ getProductFieldValue(tp, field.name) }}
+          </li>
+        </ul>
+      </div>
+
+      <p><strong>Количество:</strong> {{ task.tasks[0]?.total_quantity || '—' }}</p>
+
+      <p><strong>Готово:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
+
+      <p><strong>Материал:</strong>
+        <span v-if="task.tasks[0]?.material">
+          {{ task.tasks[0].material.type }} {{ task.tasks[0].material.color }} {{ task.tasks[0].material.thickness }}
+        </span>
+        <span v-else>—</span>
+      </p>
+
+      <p><strong>Вес:</strong> {{ task.tasks[0]?.material?.weight ?? '—' }} кг</p>
+
+      <p><strong>Отходность:</strong> {{ task.tasks[0]?.material?.waste ?? '—' }} %</p>
+
+      <p><strong>Листы:</strong></p>
+      <ul v-if="task.tasks[0]?.sheets?.length">
+        <li v-for="sheet in task.tasks[0].sheets" :key="sheet.id">
+          {{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}
+        </li>
+      </ul>
+      <p v-else>—</p>
+
+      <p><strong>Срочность:</strong> {{ task.tasks[0]?.urgency || '—' }}</p>
+
+      <p><strong>Статус:</strong> {{ task.tasks[0]?.status || '—' }}</p>
+
+      <p><strong>Статус цехов:</strong></p>
+      <ul v-if="task.tasks[0]?.workshops?.length">
+        <li v-for="ws in task.tasks[0].workshops" :key="ws.workshop_name">
+          {{ ws.workshop_name }}: {{ ws.status }}
+        </li>
+      </ul>
+      <p v-else>—</p>
+
+      <p><strong>Дата создания:</strong> {{ formatDate(task.tasks[0]?.created_at) }}</p>
+
+      <p><strong>Дата завершения:</strong> {{ formatDate(task.tasks[0]?.completed_at) }}</p>
+
+      <div v-if="task?.files?.length">
+        <h3>📁 Файлы:</h3>
+        <div class="file-grid">
+          <div
+            v-for="(fileChunk, index) in chunkedFiles"
+            :key="index"
+            class="file-column"
+          >
+            <ul>
+              <li v-for="file in fileChunk" :key="file.id">
+                <a :href="file.url" target="_blank">{{ file.filename }}</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <p v-else>Файлы не прикреплены.</p>
+    </main>
+
+    <!-- Комментарии -->
+    <aside class="comments">
+      <h3>💬 Комментарии</h3>
+      <div v-if="task.comments?.length">
+        <ul>
+          <li v-for="comment in task.comments" :key="comment.id" class="comment-item">
+            <div class="comment-header">
+              <div class="comment-content">
+                <p><strong>{{ comment.user.firstname }} {{ comment.user.name }}</strong> — {{ formatDate(comment.created_at) }}</p>
+                <p>{{ comment.content }}</p>
+              </div>
+              <button v-if="canDeleteComment(comment)" @click="deleteComment(comment.id)" class="btn-delete-comment">✕</button>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <p v-else>Комментариев пока нет.</p>
+
+      <div class="comment-form">
+        <textarea v-model="newComment" rows="3" placeholder="Введите комментарий..."></textarea>
+        <button class="btn btn-primary" @click="submitComment">Отправить</button>
+      </div>
+    </aside>
+  </div>
+  <div v-else>
+    <p>Загрузка задачи...</p>
+  </div>
+</template>
 
 <style scoped>
-.quantity-input-block {
-  margin-top: 1rem;
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
 }
-.quantity-input-block input {
-  margin-right: 0.5rem;
-  width: 100px;
+
+.file-column ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
-.top-buttons {
+
+.file-column li {
+  margin-bottom: 6px;
+}
+.task-container {
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  flex-direction: row;
+  gap: 24px;
+  padding: 16px;
 }
-p {
-  font-size: 16px;
-  margin: 8px 0;
-}
-.subtask-block {
+.sidebar {
+  width: 220px;
+  background: #f5f5f5;
   padding: 12px;
-  border: 1px solid #ccc;
   border-radius: 8px;
-  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.details {
+  flex: 1;
+  max-width: 800px;
+}
+.comments {
+  width: 300px;
+  background: #fafafa;
+  padding: 12px;
+  border-radius: 8px;
 }
 .btn {
-  margin-bottom: 16px;
   padding: 8px 12px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
 }
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
+.input-block {
+  margin: 16px 0;
 }
-.comment-form {
-  margin-top: 20px;
-}
-
 textarea {
   width: 100%;
   padding: 8px;
@@ -463,23 +508,36 @@ textarea {
   border-radius: 4px;
   border: 1px solid #ccc;
 }
-
 .btn-primary {
-  background-color: #007bff;
-  color: white;
+  background-color: #adc7df;
+  color: black;
+}
+.btn-secondary {
+  background-color: #cfcfcf;
+  color: black;
+}
+.btn-success {
+  background-color: #aad4c8;
+  color: black;
+}
+.btn-warning {
+  background-color: #ffefc7;
+  color: black;
+}
+.btn-danger {
+  background-color: rgb(239,161,140);
+  color: black;
 }
 .comment-item {
   margin-bottom: 12px;
 }
-
 .comment-header {
   display: flex;
   justify-content: space-between;
-  align-items: start;
+  align-items: flex-start;
 }
-
 .btn-delete-comment {
-  background-color: red;
+  background-color: rgb(239,161,140);
   color: white;
   font-size: 12px;
   padding: 4px 6px;
@@ -489,7 +547,4 @@ textarea {
   height: 24px;
 }
 
-.btn-delete-comment:hover {
-  background-color: darkred;
-}
 </style>
