@@ -1,6 +1,10 @@
+from hmac import new
 import os
+import shutil
+from zipfile import ZipFile
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile, status
 from typing import List
+from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +13,7 @@ from backend.app.core.dependencies import get_current_user, get_db
 from backend.app.models.bid import Bid, Customer
 from backend.app.models.enums import CassetteTypeEnum, FileType, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
 from backend.app.models.files import Files
+from backend.app.models.material import Sheets
 from backend.app.models.product import Product
 from backend.app.models.task import Task, TaskProduct
 from backend.app.models.user import User
@@ -18,14 +23,14 @@ from backend.app.schemas.create_bid import ReferenceDataResponse
 from backend.app.schemas.customer import CustomerRead
 from backend.app.schemas.file import UploadedFileResponse
 from backend.app.schemas.product_fields import get_product_fields
-from backend.app.schemas.task import BidRead, FilesRead, MaterialUpdate, QuantityUpdateRequest
+from backend.app.schemas.task import BidRead, FilesRead, MaterialUpdate, QuantityUpdateRequest, SheetsCreate
 from backend.app.schemas.user import EmployeeOut
 from backend.app.schemas.workshop import WorkshopRead
 from backend.app.services import task_service
 import json
 import logging
 
-from backend.app.services.file_service import save_file
+from backend.app.services.file_service import get_files_for_bid, save_file
 
 
 router = APIRouter()
@@ -386,3 +391,61 @@ async def update_task_done_quantity(
         "updated_products": response,
         "updated_progress_percent": progress
     }
+
+@router.post("/tasks/{task_id}/sheets")
+async def upload_sheets(
+    data: SheetsCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    new_sheet = Sheets(
+        width=data.width,
+        length=data.length,
+        quantity=data.quantity,
+        task_id=data.task_id
+    )
+    db.add(new_sheet)
+    await db.commit()
+    return  {
+                "id": new_sheet.id,
+                "count": new_sheet.quantity,
+                "width": new_sheet.width,
+                "length": new_sheet.length
+            }
+
+@router.delete("/tasks/{task_id}/sheets/{sheet_id}")
+async def delete_sheet(
+    task_id: int,
+    sheet_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Sheets).where(Sheets.id == sheet_id)
+    )
+    sheet = result.scalar_one_or_none()
+    if not sheet:
+        raise HTTPException(status_code=404, detail="Лист не найден")
+    if sheet.task_id != task_id:
+        raise HTTPException(status_code=400, detail="Лист не принадлежит задаче")
+    await db.delete(sheet)
+    await db.commit()
+    return {"success": True}
+
+@router.get("/tasks/{bid_id}/files/zip")
+async def download_files_zip(bid_id: int, db: AsyncSession = Depends(get_db)):
+    # Путь к временной папке и zip-файлу
+    zip_path = f"temp/task_{bid_id}_files.zip"
+    temp_dir = f"temp/task_{bid_id}_files"
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Скопировать файлы задачи во временную папку
+    files = await get_files_for_bid(db, bid_id)  # реализуй сам
+    for f in files:
+        shutil.copy(f.file_path, os.path.join(temp_dir, f.filename))
+
+    # Создать архив
+    with ZipFile(zip_path, 'w') as zipf:
+        for filename in os.listdir(temp_dir):
+            zipf.write(os.path.join(temp_dir, filename), arcname=filename)
+
+    # Очистка временной папки можно делать через фоновую задачу
+    return FileResponse(zip_path, filename=os.path.basename(zip_path))

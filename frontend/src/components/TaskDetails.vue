@@ -6,6 +6,10 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/utils/axios'
 const showWeightInput = ref(false)
 const showWasteInput = ref(false)
+const showSheetInput = ref(false)
+const newWidth = ref(null)
+const newLength = ref(null)
+const newSheetCount = ref(null)
 const newWeight = ref(null)
 const newWaste = ref(null)
 const route = useRoute()
@@ -301,6 +305,125 @@ const chunkedFiles = computed(() => {
   }
   return result
 })
+async function submitSheet() {
+  try {
+    const payload = {
+      task_id: task.value.tasks[0].id,
+      width: newWidth.value,
+      length: newLength.value,
+      quantity: newSheetCount.value
+    }
+
+    const response = await api.post(`/tasks/${payload.task_id}/sheets`, payload)
+
+    task.value.tasks[0].sheets.push(response.data)
+    alert('Лист добавлен')
+    showSheetInput.value = false
+  } catch (error) {
+    console.error('Ошибка добавления листа:', error)
+    alert('Не удалось добавить лист.')
+  }
+}
+function removeSheet(taskId, sheetId) {
+  api
+    .delete(`/tasks/${taskId}/sheets/${sheetId}`)
+    .then(() => {
+      // Удаляем лист на фронте
+      const sheets = task.value.tasks[0].sheets;
+      task.value.tasks[0].sheets = sheets.filter(sheet => sheet.id !== sheetId);
+    })
+    .catch((error) => {
+      console.error('Ошибка при удалении листа:', error);
+      // Можно вывести уведомление пользователю
+    });
+}
+function downloadFile(file) {
+  const link = document.createElement("a");
+  link.href = file.url;
+  link.download = file.filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+async function printFile(fileUrl, fileName) {
+  const extension = fileName.split('.').pop().toLowerCase();
+
+  try {
+    const response = await fetch(fileUrl);
+    const blob = await response.blob();
+
+    if (['pdf'].includes(extension)) {
+      // Печать PDF
+      const pdfUrl = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = pdfUrl;
+      iframe.onload = () => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      };
+      document.body.appendChild(iframe);
+    }
+
+    else if (['png', 'jpg', 'jpeg', 'bmp', 'gif'].includes(extension)) {
+      // Печать изображения
+      const imageUrl = URL.createObjectURL(blob);
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`<img src="${imageUrl}" onload="window.print(); window.close()">`);
+    }
+
+    else if (['docx', 'doc'].includes(extension)) {
+      // Печать Word через Syncfusion DocumentEditor
+      const arrayBuffer = await blob.arrayBuffer();
+      const editor = this.$refs.documenteditor;
+      if (editor) {
+        editor.open(new Uint8Array(arrayBuffer));
+        setTimeout(() => editor.print(), 500); // Немного задержки, чтобы успело отобразиться
+      } else {
+        alert('Редактор Word недоступен');
+      }
+    }
+
+    else if (['xlsx', 'xls'].includes(extension)) {
+      // Печать Excel через Syncfusion Spreadsheet
+      const arrayBuffer = await blob.arrayBuffer();
+      const spreadsheet = this.$refs.spreadsheet;
+      if (spreadsheet) {
+        spreadsheet.open({ file: new File([arrayBuffer], fileName) });
+        setTimeout(() => spreadsheet.print(), 500);
+      } else {
+        alert('Редактор Excel недоступен');
+      }
+    }
+
+    else {
+      alert('Формат файла не поддерживается для печати: ' + extension);
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка загрузки или печати файла');
+  }
+}
+
+async function downloadAllAsZip() {
+  try {
+    const response = await api.get(`/tasks/${task.value.id}/files/zip`, {
+      responseType: "blob",
+    });
+    const blob = new Blob([response.data], { type: "application/zip" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `bid_${task.value.id}_files.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error("Ошибка при скачивании архива:", error);
+    alert("Ошибка при скачивании архива.");
+  }
+}
 </script>
 
 <template>
@@ -336,6 +459,17 @@ const chunkedFiles = computed(() => {
         <label>Введите отходность (%):</label>
         <input type="number" v-model="newWaste" />
         <button class="btn btn-primary" @click="updateMaterialField('waste', newWaste)">Сохранить</button>
+      </div>
+      
+      <button class="btn btn-secondary" @click="showSheetInput = true">📄 Листы</button>
+      <div v-if="showSheetInput" class="input-block">
+        <label>Введите ширину листа (мм):</label>
+        <input type="number" v-model="newWidth" />
+        <label>Введите длину листа (мм):</label>
+        <input type="number" v-model="newLength" />
+        <label>Введите количество листов:</label>
+        <input type="number" v-model="newSheetCount" />
+        <button class="btn btn-primary" @click="submitSheet">Сохранить</button>
       </div>
 
       <button class="btn btn-secondary" @click="triggerFileInput">📎 Файлы</button>
@@ -380,8 +514,18 @@ const chunkedFiles = computed(() => {
 
       <p><strong>Листы:</strong></p>
       <ul v-if="task.tasks[0]?.sheets?.length">
-        <li v-for="sheet in task.tasks[0].sheets" :key="sheet.id">
-          {{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}
+        <li 
+          v-for="sheet in task.tasks[0].sheets" 
+          :key="sheet.id" 
+          style="display: flex; align-items: center; gap: 8px;"
+        >
+          <span>{{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}</span>
+          <button 
+            @click="removeSheet(task.tasks[0].id, sheet.id)" 
+            style="background: none; border: none; color: red; font-weight: bold; cursor: pointer;"
+          >
+            ❌
+          </button>
         </li>
       </ul>
       <p v-else>—</p>
@@ -404,6 +548,11 @@ const chunkedFiles = computed(() => {
 
       <div v-if="task?.files?.length">
         <h3>📁 Файлы:</h3>
+
+        <div class="mb-2">
+          <button @click="downloadAllAsZip" class="btn">📦 Скачать архивом</button>
+        </div>
+
         <div class="file-grid">
           <div
             v-for="(fileChunk, index) in chunkedFiles"
@@ -412,7 +561,11 @@ const chunkedFiles = computed(() => {
           >
             <ul>
               <li v-for="file in fileChunk" :key="file.id">
-                <a :href="file.url" target="_blank">{{ file.filename }}</a>
+                <div class="file-actions">
+                  <a :href="file.file_path" :target="_blank">{{ file.filename }}</a>
+                  <button @click="downloadFile(file)">⬇️</button>
+                  <button @click="printFile(file)">🖨️</button>
+                </div>
               </li>
             </ul>
           </div>

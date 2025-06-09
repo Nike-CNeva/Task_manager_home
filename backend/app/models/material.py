@@ -6,15 +6,17 @@ from backend.app.models.enums import MaterialTypeEnum, MaterialThicknessEnum
 
 class Material(Base):
     __tablename__ = "material"
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     type: Mapped[MaterialTypeEnum] = mapped_column(SQLEnum(MaterialTypeEnum), nullable=False)
     thickness: Mapped[MaterialThicknessEnum] = mapped_column(SQLEnum(MaterialThicknessEnum), nullable=False)
     color: Mapped[str] = mapped_column(String(50), nullable=True)
     waste: Mapped[float] = mapped_column(nullable=True)
-    weight: Mapped[int] = mapped_column(ForeignKey("waight.id", ondelete="CASCADE"), nullable=True)
-    tasks = relationship("Task", back_populates="material", uselist=False)
-    weight = relationship("Waight", back_populates="material", cascade="all, delete-orphan", passive_deletes=True)
 
+    # One-to-Many: один материал может иметь много записей веса
+    weights = relationship("Weight", back_populates="material", cascade="all, delete-orphan", passive_deletes=True)
+
+    tasks = relationship("Task", back_populates="material", uselist=False)
 
 # Additional Tables
 class Sheets(Base):
@@ -29,7 +31,11 @@ class Sheets(Base):
 
 class Weight(Base):
     __tablename__ = "weight"
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    material_id: Mapped[int] = mapped_column(ForeignKey("material.id", ondelete="CASCADE"), nullable=False)
     weight: Mapped[float] = mapped_column(nullable=False)
     from_waste: Mapped[bool] = mapped_column(Boolean, default=False)
-    material = relationship("Material", back_populates="weight")
+
+    # Обратная связь к Material
+    material = relationship("Material", back_populates="weights")

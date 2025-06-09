@@ -28,7 +28,6 @@ class CassetteRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     cassette_type: CassetteTypeEnum
-    description: str | None = None
 
 class KlamerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -82,6 +81,7 @@ class TaskProductRead(BaseModel):
     color: Optional[str]
     painting: bool
     quantity: int
+    description: Optional[str] = None
     done_quantity: int
     product_fields: List[Dict[str, Any]]
 
@@ -143,15 +143,18 @@ class SheetsCreate(BaseModel):
     width: int = Field(..., description="Ширина листа")
     length: int = Field(..., description="Длина листа")
     quantity: int = Field(..., description="Количество листов")
+    task_id: Optional[int] = Field(None, description="ID задачи")
+
 
 class CommonProductFields(BaseModel):
     quantity: int = Field(..., description="Количество")
     color: Optional[str] = Field(None, description="Цвет")
     painting: Optional[bool] = Field(False, description="Покраска")
+    description: Optional[str] = Field(None, description="Описание")
+
 
 class CassetteProduct(CommonProductFields):
     cassette_type: str
-    description: str
 
 class ProfileProduct(CommonProductFields):
     profile_type: str

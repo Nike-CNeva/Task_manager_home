@@ -9,6 +9,8 @@
     "build:dev": "vite build --mode development"
   },
   "dependencies": {
+    "@syncfusion/ej2-vue-documenteditor": "^29.2.9",
+    "@syncfusion/ej2-vue-spreadsheet": "^29.2.8",
     "axios": "^1.8.4",
     "bootstrap": "^5.3.6",
     "core-js": "^3.8.3",
