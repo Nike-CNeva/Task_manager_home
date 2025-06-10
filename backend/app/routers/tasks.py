@@ -430,22 +430,4 @@ async def delete_sheet(
     await db.commit()
     return {"success": True}
 
-@router.get("/tasks/{bid_id}/files/zip")
-async def download_files_zip(bid_id: int, db: AsyncSession = Depends(get_db)):
-    # Путь к временной папке и zip-файлу
-    zip_path = f"temp/task_{bid_id}_files.zip"
-    temp_dir = f"temp/task_{bid_id}_files"
-    os.makedirs(temp_dir, exist_ok=True)
 
-    # Скопировать файлы задачи во временную папку
-    files = await get_files_for_bid(db, bid_id)  # реализуй сам
-    for f in files:
-        shutil.copy(f.file_path, os.path.join(temp_dir, f.filename))
-
-    # Создать архив
-    with ZipFile(zip_path, 'w') as zipf:
-        for filename in os.listdir(temp_dir):
-            zipf.write(os.path.join(temp_dir, filename), arcname=filename)
-
-    # Очистка временной папки можно делать через фоновую задачу
-    return FileResponse(zip_path, filename=os.path.basename(zip_path))

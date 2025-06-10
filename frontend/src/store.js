@@ -122,6 +122,18 @@ export default createStore({
     },
     isAuthChecked(state) {
       return state.authChecked;
+    },
+    hasRole: (state) => (role) => {
+      return state.user.user_type === role;
+    },
+    hasWorkshop: (state) => (workshops) => {
+      if (!state.user?.workshops) return false;
+
+      if (!Array.isArray(workshops)) return false;  // <-- добавил проверку
+
+      return workshops.some(name =>
+        state.user.workshops.some(w => w.name === name)
+      );
     }
   }
 });

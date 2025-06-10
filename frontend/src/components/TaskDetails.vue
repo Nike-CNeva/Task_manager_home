@@ -86,7 +86,6 @@ onMounted(() => {
   if (encrypted) {
     try {
       currentUser.value = decrypt(encrypted)
-      
     } catch (e) {
       console.error('Ошибка дешифровки пользователя:', e)
     }
@@ -101,12 +100,6 @@ onMounted(() => {
   }
 })
 const newComment = ref('')
-function canDeleteComment() {
-  if (!currentUser.value) return false
-  return (
-    currentUser.value.user_type === 'Администратор'
-  )
-}
 async function submitComment() {
   const trimmed = newComment.value.trim()
   if (!trimmed) {
@@ -337,75 +330,6 @@ function removeSheet(taskId, sheetId) {
       // Можно вывести уведомление пользователю
     });
 }
-function downloadFile(file) {
-  const link = document.createElement("a");
-  link.href = file.url;
-  link.download = file.filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-async function printFile(fileUrl, fileName) {
-  const extension = fileName.split('.').pop().toLowerCase();
-
-  try {
-    const response = await fetch(fileUrl);
-    const blob = await response.blob();
-
-    if (['pdf'].includes(extension)) {
-      // Печать PDF
-      const pdfUrl = URL.createObjectURL(blob);
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = pdfUrl;
-      iframe.onload = () => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-      };
-      document.body.appendChild(iframe);
-    }
-
-    else if (['png', 'jpg', 'jpeg', 'bmp', 'gif'].includes(extension)) {
-      // Печать изображения
-      const imageUrl = URL.createObjectURL(blob);
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`<img src="${imageUrl}" onload="window.print(); window.close()">`);
-    }
-
-    else if (['docx', 'doc'].includes(extension)) {
-      // Печать Word через Syncfusion DocumentEditor
-      const arrayBuffer = await blob.arrayBuffer();
-      const editor = this.$refs.documenteditor;
-      if (editor) {
-        editor.open(new Uint8Array(arrayBuffer));
-        setTimeout(() => editor.print(), 500); // Немного задержки, чтобы успело отобразиться
-      } else {
-        alert('Редактор Word недоступен');
-      }
-    }
-
-    else if (['xlsx', 'xls'].includes(extension)) {
-      // Печать Excel через Syncfusion Spreadsheet
-      const arrayBuffer = await blob.arrayBuffer();
-      const spreadsheet = this.$refs.spreadsheet;
-      if (spreadsheet) {
-        spreadsheet.open({ file: new File([arrayBuffer], fileName) });
-        setTimeout(() => spreadsheet.print(), 500);
-      } else {
-        alert('Редактор Excel недоступен');
-      }
-    }
-
-    else {
-      alert('Формат файла не поддерживается для печати: ' + extension);
-    }
-
-  } catch (err) {
-    console.error(err);
-    alert('Ошибка загрузки или печати файла');
-  }
-}
 
 async function downloadAllAsZip() {
   try {
@@ -424,6 +348,59 @@ async function downloadAllAsZip() {
     alert("Ошибка при скачивании архива.");
   }
 }
+const deleteFile = async (file) => {
+  if (!confirm(`Удалить файл "${file.filename}"?`)) return;
+
+  try {
+    await api.delete(`/files/${file.id}`);
+    task.value.files = task.value.files.filter(f => f.id !== file.id);
+  } catch (error) {
+    console.error("Ошибка при удалении файла:", error);
+    alert("Не удалось удалить файл.");
+  }
+};
+
+import { saveAs } from "file-saver";
+
+const openFile = async (file) => {
+  const fileName = file.filename;
+  const bidId = file.bid_id;
+  const fileExt = fileName.split('.').pop().toLowerCase();
+
+  const browserSupportedExt = new Set(['jpg', 'jpeg', 'png', 'pdf', 'gif', 'webp', 'txt', 'html', 'mp4', 'webm', 'ogg', 'mp3']);
+
+  try {
+    const response = await api.get(`/uploads/${bidId}/${encodeURIComponent(fileName)}`, {
+      responseType: 'blob',
+    });
+
+    if (browserSupportedExt.has(fileExt)) {
+      // Попробуем взять MIME из заголовков ответа
+      const mimeType = response.headers['content-type'] || `application/octet-stream`;
+      const blob = new Blob([response.data], { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
+
+      window.open(blobUrl, '_blank');
+
+      // Можно добавить revokeObjectURL после небольшой задержки, чтобы не утекала память
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    } else {
+      saveAs(response.data, fileName);
+    }
+  } catch (error) {
+    console.error('Ошибка при открытии файла:', error);
+    alert('Не удалось открыть файл. Возможно, истёк срок действия авторизации.');
+  }
+};
+const taskWorkshopNames = computed(() => {
+  const ws = task.value?.tasks?.[0]?.workshops;
+  if (Array.isArray(ws)) {
+    return ws.map(w => w.workshop_name);
+  }
+  
+  return [];
+});
+
 </script>
 
 <template>
@@ -435,9 +412,8 @@ async function downloadAllAsZip() {
 
       <button v-if="canShowInWorkButton" class="btn btn-warning" @click="updateTaskStatus('В работе')">🚧 В работу</button>
 
-      <button class="btn btn-success" @click="updateTaskStatus('Выполнена')">✅ Выполнена</button>
-
-      <button class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">➕ Кол-во</button>
+      <button v-if="$store.getters.hasWorkshop(taskWorkshopNames)" class="btn btn-success" @click="updateTaskStatus('Выполнена')">✅ Выполнена</button>
+      <button v-if="$store.getters.hasWorkshop(taskWorkshopNames)" class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">➕ Кол-во</button>
       <div v-if="showQuantityInput" class="input-block">
         <label>Введите количество готовой продукции:</label>
         <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="tp.id">
@@ -447,21 +423,21 @@ async function downloadAllAsZip() {
         <button class="btn btn-success" @click="submitQuantity">Сохранить</button>
       </div>
 
-      <button class="btn btn-secondary" @click="showWeightInput = true">⚖️ Вес</button>
+      <button v-if="$store.getters.hasWorkshop(['Резка'])" class="btn btn-secondary" @click="showWeightInput = true">⚖️ Вес</button>
       <div v-if="showWeightInput" class="input-block">
         <label>Введите вес (в кг):</label>
         <input type="number" v-model="newWeight" />
         <button class="btn btn-primary" @click="updateMaterialField('weight', newWeight)">Сохранить</button>
       </div>
 
-      <button class="btn btn-secondary" @click="showWasteInput = true">♻️ Отходы</button>
+      <button v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')" class="btn btn-secondary" @click="showWasteInput = true">♻️ Отходы</button>
       <div v-if="showWasteInput" class="input-block">
         <label>Введите отходность (%):</label>
         <input type="number" v-model="newWaste" />
         <button class="btn btn-primary" @click="updateMaterialField('waste', newWaste)">Сохранить</button>
       </div>
       
-      <button class="btn btn-secondary" @click="showSheetInput = true">📄 Листы</button>
+      <button v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')" class="btn btn-secondary" @click="showSheetInput = true">📄 Листы</button>
       <div v-if="showSheetInput" class="input-block">
         <label>Введите ширину листа (мм):</label>
         <input type="number" v-model="newWidth" />
@@ -472,10 +448,10 @@ async function downloadAllAsZip() {
         <button class="btn btn-primary" @click="submitSheet">Сохранить</button>
       </div>
 
-      <button class="btn btn-secondary" @click="triggerFileInput">📎 Файлы</button>
+      <button v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')" class="btn btn-secondary" @click="triggerFileInput">📎 Файлы</button>
       <input ref="fileInput" type="file" multiple style="display: none" @change="handleFileUpload" />
 
-      <button class="btn btn-danger" @click="() => deleteTask(task.tasks[0].id)">🗑️ Удалить</button>
+      <button v-if="$store.getters.hasRole('Администратор')" class="btn btn-danger" @click="() => deleteTask(task.tasks[0].id)">🗑️ Удалить</button>
     </aside>
 
     <!-- Основной блок с деталями -->
@@ -521,6 +497,7 @@ async function downloadAllAsZip() {
         >
           <span>{{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}</span>
           <button 
+            v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')"
             @click="removeSheet(task.tasks[0].id, sheet.id)" 
             style="background: none; border: none; color: red; font-weight: bold; cursor: pointer;"
           >
@@ -547,29 +524,26 @@ async function downloadAllAsZip() {
       <p><strong>Дата завершения:</strong> {{ formatDate(task.tasks[0]?.completed_at) }}</p>
 
       <div v-if="task?.files?.length">
-        <h3>📁 Файлы:</h3>
-
-        <div class="mb-2">
-          <button @click="downloadAllAsZip" class="btn">📦 Скачать архивом</button>
-        </div>
-
-        <div class="file-grid">
-          <div
-            v-for="(fileChunk, index) in chunkedFiles"
-            :key="index"
-            class="file-column"
-          >
-            <ul>
-              <li v-for="file in fileChunk" :key="file.id">
-                <div class="file-actions">
-                  <a :href="file.file_path" :target="_blank">{{ file.filename }}</a>
-                  <button @click="downloadFile(file)">⬇️</button>
-                  <button @click="printFile(file)">🖨️</button>
-                </div>
-              </li>
-            </ul>
+        <details class="files-block">
+          <summary>📁 Файлы ({{ task.files.length }})</summary>
+          <div class="mt-2">
+            <button @click="downloadAllAsZip" class="btn">📦 Скачать архивом</button>
+            <div class="file-grid mt-2">
+              <div
+                v-for="(fileChunk, index) in chunkedFiles"
+                :key="index"
+                class="file-column"
+              >
+                <ul>
+                  <li v-for="file in fileChunk" :key="file.id" class="file-row">
+                    <span @click="openFile(file)" class="clickable-filename">📄 {{ file.filename }}</span>
+                    <button v-if="$store.getters.hasRole('Администратор')" @click="deleteFile(file)" class="btn btn-sm">❌</button>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
-        </div>
+        </details>
       </div>
       <p v-else>Файлы не прикреплены.</p>
     </main>
@@ -585,7 +559,7 @@ async function downloadAllAsZip() {
                 <p><strong>{{ comment.user.firstname }} {{ comment.user.name }}</strong> — {{ formatDate(comment.created_at) }}</p>
                 <p>{{ comment.content }}</p>
               </div>
-              <button v-if="canDeleteComment(comment)" @click="deleteComment(comment.id)" class="btn-delete-comment">✕</button>
+              <button v-if="$store.getters.hasRole('Администратор')" @click="deleteComment(comment.id)" class="btn-delete-comment">❌</button>
             </div>
           </li>
         </ul>
@@ -604,6 +578,13 @@ async function downloadAllAsZip() {
 </template>
 
 <style scoped>
+.clickable-filename {
+  cursor: pointer;
+  color: #3b3b3b;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
 .file-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
