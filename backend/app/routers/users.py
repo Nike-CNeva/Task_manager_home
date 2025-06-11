@@ -39,6 +39,22 @@ async def admin_users(db: AsyncSession = Depends(get_db), current_user: UserRead
 
     return users_with_workshops
 
+@router.get("/admin/users/{user_id}", response_model=UserWithWorkshops)
+async def admin_user_details(db: AsyncSession = Depends(get_db), current_user: UserRead = Depends(get_current_user)):
+    user = await user_service.get_user_by_id(db, user_id=current_user.id)
+    user_with_workshops = UserWithWorkshops(
+        id=user.id,
+        name=user.name,
+        firstname=user.firstname,
+        username=user.username,
+        email=user.email,
+        telegram=user.telegram,
+        user_type=user.user_type.value,
+        workshops= user.workshops,
+        is_active=user.is_active,
+    )
+    return user_with_workshops
+
 
 @router.get("/admin/users/create", response_model=dict)
 async def create_user_form(current_user: User = Depends(get_current_user)):

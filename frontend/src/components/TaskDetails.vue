@@ -3,7 +3,10 @@
 import { decrypt } from '@/utils/crypto'
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useStore } from 'vuex';
 import api from '@/utils/axios'
+const store = useStore();
+const fromWaste = ref(false)
 const showWeightInput = ref(false)
 const showWasteInput = ref(false)
 const showSheetInput = ref(false)
@@ -149,13 +152,26 @@ async function updateMaterialField(fieldName, fieldValue) {
     // Обновляем локальное состояние
     task.value.tasks[0].material[fieldName] = payload[fieldName]
 
+    // Скрываем поля ввода
     if (fieldName === 'weight') showWeightInput.value = false
-    if (fieldName === 'waste') showWasteInput.value = false
+    if (fieldName === 'from_waste') showWasteInput.value = false
 
-    alert(`${fieldName === 'weight' ? 'Вес' : 'Отходность'} обновлена`)
+    // Уведомление
+    const labels = {
+      weight: 'Вес',
+      from_waste: 'Флаг "из отходов"',
+    }
+
+    alert(`${labels[fieldName] || fieldName} обновлён(а)`)
   } catch (error) {
     console.error(`Ошибка обновления ${fieldName}:`, error)
-    alert(`Не удалось обновить ${fieldName === 'weight' ? 'вес' : 'отходность'}.`)
+
+    const labels = {
+      weight: 'вес',
+      from_waste: 'флаг "из отходов"',
+    }
+
+    alert(`Не удалось обновить ${labels[fieldName] || fieldName}.`)
   }
 }
 async function handleFileUpload(event) {
@@ -230,34 +246,43 @@ const canShowInWorkButton = computed(() => {
     !task.value ||
     !task.value.tasks?.[0] ||
     !task.value.tasks[0].workshops
-  ) return false;
-
-  // получаем массив имён цехов пользователя
-  const userWorkshopNames = currentUser.value.workshops.map(w => w.name);
-  if (!userWorkshopNames.length) return false;
+  ) {
+    return false;
+  }
 
   const workshops = task.value.tasks[0].workshops;
 
-  return userWorkshopNames.some(userWorkshop => {
-    const curIndex = WORKSHOP_ORDER.indexOf(userWorkshop);
-    if (curIndex === -1) return false;
+  const allAreNew = workshops.every(w => w.status === "Новая");
 
-    const workshopInfo = workshops.find(w => w.workshop_name === userWorkshop);
-    if (!workshopInfo) return false;
+  if (allAreNew) {
+    const firstNewWorkshopName = WORKSHOP_ORDER.find(orderName =>
+      workshops.some(w => w.workshop_name === orderName && w.status === "Новая")
+    );
 
-    const status = workshopInfo.status;
-    if (status !== "Новая" && status !== "На удержании") return false;
+    const hasAccess = store.getters.hasWorkshop([firstNewWorkshopName]);
 
-    // Проверяем предыдущий цех
-    if (curIndex > 0) {
-      const prevWorkshopName = WORKSHOP_ORDER[curIndex - 1];
-      const prevWorkshopInfo = workshops.find(w => w.workshop_name === prevWorkshopName);
-      if (prevWorkshopInfo && prevWorkshopInfo.status !== "Выполнена") return false;
-    }
+    return !!firstNewWorkshopName && hasAccess;
+  }
 
-    return true;
-  });
+  // Если не все "Новая" — идём по обычной логике
+  for (let i = 0; i < WORKSHOP_ORDER.length; i++) {
+    const workshopName = WORKSHOP_ORDER[i];
+    const workshopInfo = workshops.find(w => w.workshop_name === workshopName);
+    if (!workshopInfo) continue;
+
+    if (workshopInfo.status !== "Новая" && workshopInfo.status !== "На удержании") continue;
+
+    const allPrevReady = WORKSHOP_ORDER.slice(0, i).every(prevName => {
+      const prevWorkshop = workshops.find(w => w.workshop_name === prevName);
+      return !prevWorkshop || prevWorkshop.status === "Выполнена";
+    });
+    if (!allPrevReady) continue;
+    const hasAccess = store.getters.hasWorkshop([workshopName]);
+    if (hasAccess) return true;
+  }
+  return false;
 });
+
 const showQuantityInput = ref(false)
 
 async function submitQuantity() {
@@ -401,6 +426,72 @@ const taskWorkshopNames = computed(() => {
   return [];
 });
 
+const hasWorkshopInProgress = computed(() => {
+  if (
+    !currentUser.value ||
+    !task.value ||
+    !task.value.tasks?.[0] ||
+    !task.value.tasks[0].workshops
+  ) return false;
+
+  const workshops = task.value.tasks[0].workshops;
+  const userWorkshopNames = currentUser.value.workshops.map(w => w.name);
+
+  // Ищем хотя бы один цех у задачи со статусом "В работе",
+  // который совпадает с цехом пользователя
+  return workshops.some(w => 
+    w.status === "В работе" && userWorkshopNames.includes(w.workshop_name)
+  );
+});
+const isTaskReadyEngineer = computed(() => {
+  if (!Array.isArray(task.value.tasks)) {
+    return false
+  }
+
+  if (task.value.tasks.length === 0) {
+    return false
+  }
+
+  const firstTask = task.value.tasks[0]
+
+  if (!firstTask) {
+    return false
+  }
+
+  if (!Array.isArray(firstTask.sheets)) {
+    return false
+  }
+
+  const hasSheets = firstTask.sheets.length > 0
+
+  if (!Array.isArray(task.value.files)) {
+    return false
+  }
+
+  const hasNcFiles = task.value.files.some(file => {
+    typeof file.filename === 'string' && file.filename.toLowerCase().endsWith('.nc')
+  })
+
+  const result = hasSheets && hasNcFiles
+
+  return result
+})
+
+const shouldShowSection = computed(() => {
+  if (store.getters.hasRole('Инженер')) {
+    return isTaskReadyEngineer.value && hasWorkshopInProgress.value
+  } else {
+    return store.getters.hasWorkshop(taskWorkshopNames.value) && hasWorkshopInProgress.value
+  }
+})
+
+const sortedWorkshops = computed(() => {
+  const workshops = task.value?.tasks?.[0]?.workshops || []
+  return WORKSHOP_ORDER
+    .map(name => workshops.find(ws => ws.workshop_name === name))
+    .filter(Boolean) // убираем undefined, если цеха нет в задаче
+})
+
 </script>
 
 <template>
@@ -412,8 +503,8 @@ const taskWorkshopNames = computed(() => {
 
       <button v-if="canShowInWorkButton" class="btn btn-warning" @click="updateTaskStatus('В работе')">🚧 В работу</button>
 
-      <button v-if="$store.getters.hasWorkshop(taskWorkshopNames)" class="btn btn-success" @click="updateTaskStatus('Выполнена')">✅ Выполнена</button>
-      <button v-if="$store.getters.hasWorkshop(taskWorkshopNames)" class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">➕ Кол-во</button>
+      <button v-if="shouldShowSection" class="btn btn-success" @click="updateTaskStatus('Выполнена')">✅ Выполнена</button>
+      <button v-if="hasWorkshopInProgress && (!$store.getters.hasRole('Инженер') && $store.getters.hasWorkshop(['Резка']))" class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">➕ Кол-во</button>
       <div v-if="showQuantityInput" class="input-block">
         <label>Введите количество готовой продукции:</label>
         <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="tp.id">
@@ -423,21 +514,27 @@ const taskWorkshopNames = computed(() => {
         <button class="btn btn-success" @click="submitQuantity">Сохранить</button>
       </div>
 
-      <button v-if="$store.getters.hasWorkshop(['Резка'])" class="btn btn-secondary" @click="showWeightInput = true">⚖️ Вес</button>
+      <button v-if="$store.getters.hasWorkshop(['Резка']) && hasWorkshopInProgress" class="btn btn-secondary" @click="showWeightInput = true">⚖️ Вес</button>
       <div v-if="showWeightInput" class="input-block">
         <label>Введите вес (в кг):</label>
         <input type="number" v-model="newWeight" />
-        <button class="btn btn-primary" @click="updateMaterialField('weight', newWeight)">Сохранить</button>
+
+        <label>
+          <input type="checkbox" v-model="fromWaste" />
+          Из отходов
+        </label>
+
+        <button class="btn btn-primary" @click="updateMaterial">Сохранить</button>
       </div>
 
-      <button v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')" class="btn btn-secondary" @click="showWasteInput = true">♻️ Отходы</button>
+      <button v-if="hasWorkshopInProgress && ( $store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер') )" class="btn btn-secondary" @click="showWasteInput = true">♻️ Отходы</button>
       <div v-if="showWasteInput" class="input-block">
         <label>Введите отходность (%):</label>
         <input type="number" v-model="newWaste" />
         <button class="btn btn-primary" @click="updateMaterialField('waste', newWaste)">Сохранить</button>
       </div>
       
-      <button v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')" class="btn btn-secondary" @click="showSheetInput = true">📄 Листы</button>
+      <button v-if="hasWorkshopInProgress && ( $store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер') )" class="btn btn-secondary" @click="showSheetInput = true">📄 Листы</button>
       <div v-if="showSheetInput" class="input-block">
         <label>Введите ширину листа (мм):</label>
         <input type="number" v-model="newWidth" />
@@ -475,7 +572,7 @@ const taskWorkshopNames = computed(() => {
 
       <p><strong>Количество:</strong> {{ task.tasks[0]?.total_quantity || '—' }}</p>
 
-      <p><strong>Готово:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
+      <p v-if="!$store.getters.hasRole('Инженер')"><strong>Готово:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
 
       <p><strong>Материал:</strong>
         <span v-if="task.tasks[0]?.material">
@@ -484,7 +581,7 @@ const taskWorkshopNames = computed(() => {
         <span v-else>—</span>
       </p>
 
-      <p><strong>Вес:</strong> {{ task.tasks[0]?.material?.weight ?? '—' }} кг</p>
+      <p v-if="!$store.getters.hasRole('Инженер')"><strong>Вес:</strong> {{ task.tasks[0]?.material?.weight ?? '—' }} кг</p>
 
       <p><strong>Отходность:</strong> {{ task.tasks[0]?.material?.waste ?? '—' }} %</p>
 
@@ -509,11 +606,11 @@ const taskWorkshopNames = computed(() => {
 
       <p><strong>Срочность:</strong> {{ task.tasks[0]?.urgency || '—' }}</p>
 
-      <p><strong>Статус:</strong> {{ task.tasks[0]?.status || '—' }}</p>
+      <p v-if="$store.getters.hasRole('Администратор')"><strong>Статус:</strong> {{ task.tasks[0]?.status || '—' }}</p>
 
       <p><strong>Статус цехов:</strong></p>
-      <ul v-if="task.tasks[0]?.workshops?.length">
-        <li v-for="ws in task.tasks[0].workshops" :key="ws.workshop_name">
+      <ul v-if="sortedWorkshops.length">
+        <li v-for="ws in sortedWorkshops" :key="ws.workshop_name">
           {{ ws.workshop_name }}: {{ ws.status }}
         </li>
       </ul>

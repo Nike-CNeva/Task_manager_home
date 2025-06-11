@@ -15,7 +15,7 @@ from backend.app.models.enums import CassetteTypeEnum, FileType, KlamerTypeEnum,
 from backend.app.models.files import Files
 from backend.app.models.material import Sheets
 from backend.app.models.product import Product
-from backend.app.models.task import Task, TaskProduct
+from backend.app.models.task import Task, TaskProduct, TaskWorkshop
 from backend.app.models.user import User
 from backend.app.models.workshop import WORKSHOP_ORDER, Workshop
 from backend.app.schemas.bid import BidCreate
@@ -269,7 +269,7 @@ async def update_workshop_status(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Task).options(selectinload(Task.workshops)).where(Task.id == task_id)
+        select(Task).options(selectinload(Task.workshops).selectinload(TaskWorkshop.workshop)).where(Task.id == task_id)
     )
     task = result.scalars().first()
 
@@ -291,7 +291,7 @@ async def update_workshop_status(
     target_workshop = next(
         (
             w for w in task_workshops
-            if w.workshop.name in user_workshop_names and w.status != "Выполнена"
+            if w.workshop.name in user_workshop_names and w.status != StatusEnum.COMPLETED
         ),
         None
     )
@@ -302,20 +302,20 @@ async def update_workshop_status(
     target_index = task_workshops.index(target_workshop)
 
     for prev_workshop in task_workshops[:target_index]:
-        if prev_workshop.status != "Выполнена":
+        if prev_workshop.status != StatusEnum.COMPLETED:
             raise HTTPException(status_code=400, detail="Предыдущие цеха не завершены")
 
     target_workshop.status = new_status
 
-    if target_index == 0 and new_status == "В работе":
+    if target_index == 0 and new_status == StatusEnum.IN_WORK:
         for w in task_workshops[1:]:
-            w.status = "На удержании"
+            w.status = StatusEnum.ON_HOLD
 
     statuses = [w.status for w in task_workshops]
-    if all(status == "Выполнена" for status in statuses):
-        task.status = "Выполнена"
-    elif any(status == "В работе" for status in statuses):
-        task.status = "В работе"
+    if all(status == StatusEnum.COMPLETED for status in statuses):
+        task.status = StatusEnum.COMPLETED
+    elif any(status == StatusEnum.IN_WORK for status in statuses):
+        task.status = StatusEnum.IN_WORK
 
     await db.commit()
 

@@ -61,6 +61,22 @@ export default createStore({
     },
   },
   actions: {
+    async fetchCurrentUser({ commit, state }) {
+      if (!state.token || !state.user.id) return;
+
+      try {
+        const response = await api.get(`/admin/users/${state.user.id}`);
+
+        // В ответе, судя по шаблону формы, данные пользователя в response.data.user_obj
+        const updatedUser = response.data.user_obj;
+
+        // Обновим user в сторе (может надо дополнительно подстроить под структуру user)
+        commit('setUser', updatedUser);
+
+      } catch (e) {
+        console.error('Ошибка при обновлении пользователя:', e);
+      }
+    },
     login({ commit }, { token, user }) {
       commit('setToken', token);
       commit('setUser', user);

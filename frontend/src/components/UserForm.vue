@@ -116,6 +116,7 @@ import api from '@/utils/axios';
           const { data, status } = await api.post('/admin/users/save', payload);
   
           if (status === 200) {
+            await this.$store.dispatch('fetchCurrentUser');
             if (data.redirect_url) {
               this.$router.push(data.redirect_url);
             } else {
