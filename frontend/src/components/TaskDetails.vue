@@ -3,9 +3,16 @@
 import { decrypt } from '@/utils/crypto'
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useStore } from 'vuex';
 import api from '@/utils/axios'
+const store = useStore();
+const fromWaste = ref(false)
 const showWeightInput = ref(false)
 const showWasteInput = ref(false)
+const showSheetInput = ref(false)
+const newWidth = ref(null)
+const newLength = ref(null)
+const newSheetCount = ref(null)
 const newWeight = ref(null)
 const newWaste = ref(null)
 const route = useRoute()
@@ -82,7 +89,6 @@ onMounted(() => {
   if (encrypted) {
     try {
       currentUser.value = decrypt(encrypted)
-      
     } catch (e) {
       console.error('Ошибка дешифровки пользователя:', e)
     }
@@ -97,12 +103,6 @@ onMounted(() => {
   }
 })
 const newComment = ref('')
-function canDeleteComment() {
-  if (!currentUser.value) return false
-  return (
-    currentUser.value.user_type === 'Администратор'
-  )
-}
 async function submitComment() {
   const trimmed = newComment.value.trim()
   if (!trimmed) {
@@ -152,13 +152,26 @@ async function updateMaterialField(fieldName, fieldValue) {
     // Обновляем локальное состояние
     task.value.tasks[0].material[fieldName] = payload[fieldName]
 
+    // Скрываем поля ввода
     if (fieldName === 'weight') showWeightInput.value = false
-    if (fieldName === 'waste') showWasteInput.value = false
+    if (fieldName === 'from_waste') showWasteInput.value = false
 
-    alert(`${fieldName === 'weight' ? 'Вес' : 'Отходность'} обновлена`)
+    // Уведомление
+    const labels = {
+      weight: 'Вес',
+      from_waste: 'Флаг "из отходов"',
+    }
+
+    alert(`${labels[fieldName] || fieldName} обновлён(а)`)
   } catch (error) {
     console.error(`Ошибка обновления ${fieldName}:`, error)
-    alert(`Не удалось обновить ${fieldName === 'weight' ? 'вес' : 'отходность'}.`)
+
+    const labels = {
+      weight: 'вес',
+      from_waste: 'флаг "из отходов"',
+    }
+
+    alert(`Не удалось обновить ${labels[fieldName] || fieldName}.`)
   }
 }
 async function handleFileUpload(event) {
@@ -233,34 +246,43 @@ const canShowInWorkButton = computed(() => {
     !task.value ||
     !task.value.tasks?.[0] ||
     !task.value.tasks[0].workshops
-  ) return false;
-
-  // получаем массив имён цехов пользователя
-  const userWorkshopNames = currentUser.value.workshops.map(w => w.name);
-  if (!userWorkshopNames.length) return false;
+  ) {
+    return false;
+  }
 
   const workshops = task.value.tasks[0].workshops;
 
-  return userWorkshopNames.some(userWorkshop => {
-    const curIndex = WORKSHOP_ORDER.indexOf(userWorkshop);
-    if (curIndex === -1) return false;
+  const allAreNew = workshops.every(w => w.status === "Новая");
 
-    const workshopInfo = workshops.find(w => w.workshop_name === userWorkshop);
-    if (!workshopInfo) return false;
+  if (allAreNew) {
+    const firstNewWorkshopName = WORKSHOP_ORDER.find(orderName =>
+      workshops.some(w => w.workshop_name === orderName && w.status === "Новая")
+    );
 
-    const status = workshopInfo.status;
-    if (status !== "Новая" && status !== "На удержании") return false;
+    const hasAccess = store.getters.hasWorkshop([firstNewWorkshopName]);
 
-    // Проверяем предыдущий цех
-    if (curIndex > 0) {
-      const prevWorkshopName = WORKSHOP_ORDER[curIndex - 1];
-      const prevWorkshopInfo = workshops.find(w => w.workshop_name === prevWorkshopName);
-      if (prevWorkshopInfo && prevWorkshopInfo.status !== "Выполнена") return false;
-    }
+    return !!firstNewWorkshopName && hasAccess;
+  }
 
-    return true;
-  });
+  // Если не все "Новая" — идём по обычной логике
+  for (let i = 0; i < WORKSHOP_ORDER.length; i++) {
+    const workshopName = WORKSHOP_ORDER[i];
+    const workshopInfo = workshops.find(w => w.workshop_name === workshopName);
+    if (!workshopInfo) continue;
+
+    if (workshopInfo.status !== "Новая" && workshopInfo.status !== "На удержании") continue;
+
+    const allPrevReady = WORKSHOP_ORDER.slice(0, i).every(prevName => {
+      const prevWorkshop = workshops.find(w => w.workshop_name === prevName);
+      return !prevWorkshop || prevWorkshop.status === "Выполнена";
+    });
+    if (!allPrevReady) continue;
+    const hasAccess = store.getters.hasWorkshop([workshopName]);
+    if (hasAccess) return true;
+  }
+  return false;
 });
+
 const showQuantityInput = ref(false)
 
 async function submitQuantity() {
@@ -301,6 +323,175 @@ const chunkedFiles = computed(() => {
   }
   return result
 })
+async function submitSheet() {
+  try {
+    const payload = {
+      task_id: task.value.tasks[0].id,
+      width: newWidth.value,
+      length: newLength.value,
+      quantity: newSheetCount.value
+    }
+
+    const response = await api.post(`/tasks/${payload.task_id}/sheets`, payload)
+
+    task.value.tasks[0].sheets.push(response.data)
+    alert('Лист добавлен')
+    showSheetInput.value = false
+  } catch (error) {
+    console.error('Ошибка добавления листа:', error)
+    alert('Не удалось добавить лист.')
+  }
+}
+function removeSheet(taskId, sheetId) {
+  api
+    .delete(`/tasks/${taskId}/sheets/${sheetId}`)
+    .then(() => {
+      // Удаляем лист на фронте
+      const sheets = task.value.tasks[0].sheets;
+      task.value.tasks[0].sheets = sheets.filter(sheet => sheet.id !== sheetId);
+    })
+    .catch((error) => {
+      console.error('Ошибка при удалении листа:', error);
+      // Можно вывести уведомление пользователю
+    });
+}
+
+async function downloadAllAsZip() {
+  try {
+    const response = await api.get(`/tasks/${task.value.id}/files/zip`, {
+      responseType: "blob",
+    });
+    const blob = new Blob([response.data], { type: "application/zip" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `bid_${task.value.id}_files.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error("Ошибка при скачивании архива:", error);
+    alert("Ошибка при скачивании архива.");
+  }
+}
+const deleteFile = async (file) => {
+  if (!confirm(`Удалить файл "${file.filename}"?`)) return;
+
+  try {
+    await api.delete(`/files/${file.id}`);
+    task.value.files = task.value.files.filter(f => f.id !== file.id);
+  } catch (error) {
+    console.error("Ошибка при удалении файла:", error);
+    alert("Не удалось удалить файл.");
+  }
+};
+
+import { saveAs } from "file-saver";
+
+const openFile = async (file) => {
+  const fileName = file.filename;
+  const bidId = file.bid_id;
+  const fileExt = fileName.split('.').pop().toLowerCase();
+
+  const browserSupportedExt = new Set(['jpg', 'jpeg', 'png', 'pdf', 'gif', 'webp', 'txt', 'html', 'mp4', 'webm', 'ogg', 'mp3']);
+
+  try {
+    const response = await api.get(`/uploads/${bidId}/${encodeURIComponent(fileName)}`, {
+      responseType: 'blob',
+    });
+
+    if (browserSupportedExt.has(fileExt)) {
+      // Попробуем взять MIME из заголовков ответа
+      const mimeType = response.headers['content-type'] || `application/octet-stream`;
+      const blob = new Blob([response.data], { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
+
+      window.open(blobUrl, '_blank');
+
+      // Можно добавить revokeObjectURL после небольшой задержки, чтобы не утекала память
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    } else {
+      saveAs(response.data, fileName);
+    }
+  } catch (error) {
+    console.error('Ошибка при открытии файла:', error);
+    alert('Не удалось открыть файл. Возможно, истёк срок действия авторизации.');
+  }
+};
+const taskWorkshopNames = computed(() => {
+  const ws = task.value?.tasks?.[0]?.workshops;
+  if (Array.isArray(ws)) {
+    return ws.map(w => w.workshop_name);
+  }
+  
+  return [];
+});
+
+const hasWorkshopInProgress = computed(() => {
+  if (
+    !currentUser.value ||
+    !task.value ||
+    !task.value.tasks?.[0] ||
+    !task.value.tasks[0].workshops
+  ) return false;
+
+  const workshops = task.value.tasks[0].workshops;
+  const userWorkshopNames = currentUser.value.workshops.map(w => w.name);
+
+  // Ищем хотя бы один цех у задачи со статусом "В работе",
+  // который совпадает с цехом пользователя
+  return workshops.some(w => 
+    w.status === "В работе" && userWorkshopNames.includes(w.workshop_name)
+  );
+});
+const isTaskReadyEngineer = computed(() => {
+  if (!Array.isArray(task.value.tasks)) {
+    return false
+  }
+
+  if (task.value.tasks.length === 0) {
+    return false
+  }
+
+  const firstTask = task.value.tasks[0]
+
+  if (!firstTask) {
+    return false
+  }
+
+  if (!Array.isArray(firstTask.sheets)) {
+    return false
+  }
+
+  const hasSheets = firstTask.sheets.length > 0
+
+  if (!Array.isArray(task.value.files)) {
+    return false
+  }
+
+  const hasNcFiles = task.value.files.some(file => {
+    typeof file.filename === 'string' && file.filename.toLowerCase().endsWith('.nc')
+  })
+
+  const result = hasSheets && hasNcFiles
+
+  return result
+})
+
+const shouldShowSection = computed(() => {
+  if (store.getters.hasRole('Инженер')) {
+    return isTaskReadyEngineer.value && hasWorkshopInProgress.value
+  } else {
+    return store.getters.hasWorkshop(taskWorkshopNames.value) && hasWorkshopInProgress.value
+  }
+})
+
+const sortedWorkshops = computed(() => {
+  const workshops = task.value?.tasks?.[0]?.workshops || []
+  return WORKSHOP_ORDER
+    .map(name => workshops.find(ws => ws.workshop_name === name))
+    .filter(Boolean) // убираем undefined, если цеха нет в задаче
+})
+
 </script>
 
 <template>
@@ -312,9 +503,8 @@ const chunkedFiles = computed(() => {
 
       <button v-if="canShowInWorkButton" class="btn btn-warning" @click="updateTaskStatus('В работе')">🚧 В работу</button>
 
-      <button class="btn btn-success" @click="updateTaskStatus('Выполнена')">✅ Выполнена</button>
-
-      <button class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">➕ Кол-во</button>
+      <button v-if="shouldShowSection" class="btn btn-success" @click="updateTaskStatus('Выполнена')">✅ Выполнена</button>
+      <button v-if="hasWorkshopInProgress && (!$store.getters.hasRole('Инженер') && $store.getters.hasWorkshop(['Резка']))" class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">➕ Кол-во</button>
       <div v-if="showQuantityInput" class="input-block">
         <label>Введите количество готовой продукции:</label>
         <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="tp.id">
@@ -324,24 +514,41 @@ const chunkedFiles = computed(() => {
         <button class="btn btn-success" @click="submitQuantity">Сохранить</button>
       </div>
 
-      <button class="btn btn-secondary" @click="showWeightInput = true">⚖️ Вес</button>
+      <button v-if="$store.getters.hasWorkshop(['Резка']) && hasWorkshopInProgress" class="btn btn-secondary" @click="showWeightInput = true">⚖️ Вес</button>
       <div v-if="showWeightInput" class="input-block">
         <label>Введите вес (в кг):</label>
         <input type="number" v-model="newWeight" />
-        <button class="btn btn-primary" @click="updateMaterialField('weight', newWeight)">Сохранить</button>
+
+        <label>
+          <input type="checkbox" v-model="fromWaste" />
+          Из отходов
+        </label>
+
+        <button class="btn btn-primary" @click="updateMaterial">Сохранить</button>
       </div>
 
-      <button class="btn btn-secondary" @click="showWasteInput = true">♻️ Отходы</button>
+      <button v-if="hasWorkshopInProgress && ( $store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер') )" class="btn btn-secondary" @click="showWasteInput = true">♻️ Отходы</button>
       <div v-if="showWasteInput" class="input-block">
         <label>Введите отходность (%):</label>
         <input type="number" v-model="newWaste" />
         <button class="btn btn-primary" @click="updateMaterialField('waste', newWaste)">Сохранить</button>
       </div>
+      
+      <button v-if="hasWorkshopInProgress && ( $store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер') )" class="btn btn-secondary" @click="showSheetInput = true">📄 Листы</button>
+      <div v-if="showSheetInput" class="input-block">
+        <label>Введите ширину листа (мм):</label>
+        <input type="number" v-model="newWidth" />
+        <label>Введите длину листа (мм):</label>
+        <input type="number" v-model="newLength" />
+        <label>Введите количество листов:</label>
+        <input type="number" v-model="newSheetCount" />
+        <button class="btn btn-primary" @click="submitSheet">Сохранить</button>
+      </div>
 
-      <button class="btn btn-secondary" @click="triggerFileInput">📎 Файлы</button>
+      <button v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')" class="btn btn-secondary" @click="triggerFileInput">📎 Файлы</button>
       <input ref="fileInput" type="file" multiple style="display: none" @change="handleFileUpload" />
 
-      <button class="btn btn-danger" @click="() => deleteTask(task.tasks[0].id)">🗑️ Удалить</button>
+      <button v-if="$store.getters.hasRole('Администратор')" class="btn btn-danger" @click="() => deleteTask(task.tasks[0].id)">🗑️ Удалить</button>
     </aside>
 
     <!-- Основной блок с деталями -->
@@ -365,7 +572,7 @@ const chunkedFiles = computed(() => {
 
       <p><strong>Количество:</strong> {{ task.tasks[0]?.total_quantity || '—' }}</p>
 
-      <p><strong>Готово:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
+      <p v-if="!$store.getters.hasRole('Инженер')"><strong>Готово:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
 
       <p><strong>Материал:</strong>
         <span v-if="task.tasks[0]?.material">
@@ -374,25 +581,36 @@ const chunkedFiles = computed(() => {
         <span v-else>—</span>
       </p>
 
-      <p><strong>Вес:</strong> {{ task.tasks[0]?.material?.weight ?? '—' }} кг</p>
+      <p v-if="!$store.getters.hasRole('Инженер')"><strong>Вес:</strong> {{ task.tasks[0]?.material?.weight ?? '—' }} кг</p>
 
       <p><strong>Отходность:</strong> {{ task.tasks[0]?.material?.waste ?? '—' }} %</p>
 
       <p><strong>Листы:</strong></p>
       <ul v-if="task.tasks[0]?.sheets?.length">
-        <li v-for="sheet in task.tasks[0].sheets" :key="sheet.id">
-          {{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}
+        <li 
+          v-for="sheet in task.tasks[0].sheets" 
+          :key="sheet.id" 
+          style="display: flex; align-items: center; gap: 8px;"
+        >
+          <span>{{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}</span>
+          <button 
+            v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')"
+            @click="removeSheet(task.tasks[0].id, sheet.id)" 
+            style="background: none; border: none; color: red; font-weight: bold; cursor: pointer;"
+          >
+            ❌
+          </button>
         </li>
       </ul>
       <p v-else>—</p>
 
       <p><strong>Срочность:</strong> {{ task.tasks[0]?.urgency || '—' }}</p>
 
-      <p><strong>Статус:</strong> {{ task.tasks[0]?.status || '—' }}</p>
+      <p v-if="$store.getters.hasRole('Администратор')"><strong>Статус:</strong> {{ task.tasks[0]?.status || '—' }}</p>
 
       <p><strong>Статус цехов:</strong></p>
-      <ul v-if="task.tasks[0]?.workshops?.length">
-        <li v-for="ws in task.tasks[0].workshops" :key="ws.workshop_name">
+      <ul v-if="sortedWorkshops.length">
+        <li v-for="ws in sortedWorkshops" :key="ws.workshop_name">
           {{ ws.workshop_name }}: {{ ws.status }}
         </li>
       </ul>
@@ -403,20 +621,26 @@ const chunkedFiles = computed(() => {
       <p><strong>Дата завершения:</strong> {{ formatDate(task.tasks[0]?.completed_at) }}</p>
 
       <div v-if="task?.files?.length">
-        <h3>📁 Файлы:</h3>
-        <div class="file-grid">
-          <div
-            v-for="(fileChunk, index) in chunkedFiles"
-            :key="index"
-            class="file-column"
-          >
-            <ul>
-              <li v-for="file in fileChunk" :key="file.id">
-                <a :href="file.url" target="_blank">{{ file.filename }}</a>
-              </li>
-            </ul>
+        <details class="files-block">
+          <summary>📁 Файлы ({{ task.files.length }})</summary>
+          <div class="mt-2">
+            <button @click="downloadAllAsZip" class="btn">📦 Скачать архивом</button>
+            <div class="file-grid mt-2">
+              <div
+                v-for="(fileChunk, index) in chunkedFiles"
+                :key="index"
+                class="file-column"
+              >
+                <ul>
+                  <li v-for="file in fileChunk" :key="file.id" class="file-row">
+                    <span @click="openFile(file)" class="clickable-filename">📄 {{ file.filename }}</span>
+                    <button v-if="$store.getters.hasRole('Администратор')" @click="deleteFile(file)" class="btn btn-sm">❌</button>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
-        </div>
+        </details>
       </div>
       <p v-else>Файлы не прикреплены.</p>
     </main>
@@ -432,7 +656,7 @@ const chunkedFiles = computed(() => {
                 <p><strong>{{ comment.user.firstname }} {{ comment.user.name }}</strong> — {{ formatDate(comment.created_at) }}</p>
                 <p>{{ comment.content }}</p>
               </div>
-              <button v-if="canDeleteComment(comment)" @click="deleteComment(comment.id)" class="btn-delete-comment">✕</button>
+              <button v-if="$store.getters.hasRole('Администратор')" @click="deleteComment(comment.id)" class="btn-delete-comment">❌</button>
             </div>
           </li>
         </ul>
@@ -451,6 +675,13 @@ const chunkedFiles = computed(() => {
 </template>
 
 <style scoped>
+.clickable-filename {
+  cursor: pointer;
+  color: #3b3b3b;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
 .file-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

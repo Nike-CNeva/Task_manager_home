@@ -59,7 +59,6 @@ class Cassette(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"),  nullable=False)
     cassette_type: Mapped[CassetteTypeEnum] = mapped_column(SQLEnum(CassetteTypeEnum), nullable=False)
-    description: Mapped[str] = mapped_column(String(255), nullable=True)
     product = relationship("Product", back_populates="cassette")
 
 # Linear Panel Table

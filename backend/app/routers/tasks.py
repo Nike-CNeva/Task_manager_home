@@ -1,6 +1,10 @@
+from hmac import new
 import os
+import shutil
+from zipfile import ZipFile
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile, status
 from typing import List
+from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,8 +13,9 @@ from backend.app.core.dependencies import get_current_user, get_db
 from backend.app.models.bid import Bid, Customer
 from backend.app.models.enums import CassetteTypeEnum, FileType, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
 from backend.app.models.files import Files
+from backend.app.models.material import Sheets
 from backend.app.models.product import Product
-from backend.app.models.task import Task, TaskProduct
+from backend.app.models.task import Task, TaskProduct, TaskWorkshop
 from backend.app.models.user import User
 from backend.app.models.workshop import WORKSHOP_ORDER, Workshop
 from backend.app.schemas.bid import BidCreate
@@ -18,14 +23,14 @@ from backend.app.schemas.create_bid import ReferenceDataResponse
 from backend.app.schemas.customer import CustomerRead
 from backend.app.schemas.file import UploadedFileResponse
 from backend.app.schemas.product_fields import get_product_fields
-from backend.app.schemas.task import BidRead, FilesRead, MaterialUpdate, QuantityUpdateRequest
+from backend.app.schemas.task import BidRead, FilesRead, MaterialUpdate, QuantityUpdateRequest, SheetsCreate
 from backend.app.schemas.user import EmployeeOut
 from backend.app.schemas.workshop import WorkshopRead
 from backend.app.services import task_service
 import json
 import logging
 
-from backend.app.services.file_service import save_file
+from backend.app.services.file_service import get_files_for_bid, save_file
 
 
 router = APIRouter()
@@ -264,7 +269,7 @@ async def update_workshop_status(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Task).options(selectinload(Task.workshops)).where(Task.id == task_id)
+        select(Task).options(selectinload(Task.workshops).selectinload(TaskWorkshop.workshop)).where(Task.id == task_id)
     )
     task = result.scalars().first()
 
@@ -286,7 +291,7 @@ async def update_workshop_status(
     target_workshop = next(
         (
             w for w in task_workshops
-            if w.workshop.name in user_workshop_names and w.status != "Выполнена"
+            if w.workshop.name in user_workshop_names and w.status != StatusEnum.COMPLETED
         ),
         None
     )
@@ -297,20 +302,20 @@ async def update_workshop_status(
     target_index = task_workshops.index(target_workshop)
 
     for prev_workshop in task_workshops[:target_index]:
-        if prev_workshop.status != "Выполнена":
+        if prev_workshop.status != StatusEnum.COMPLETED:
             raise HTTPException(status_code=400, detail="Предыдущие цеха не завершены")
 
     target_workshop.status = new_status
 
-    if target_index == 0 and new_status == "В работе":
+    if target_index == 0 and new_status == StatusEnum.IN_WORK:
         for w in task_workshops[1:]:
-            w.status = "На удержании"
+            w.status = StatusEnum.ON_HOLD
 
     statuses = [w.status for w in task_workshops]
-    if all(status == "Выполнена" for status in statuses):
-        task.status = "Выполнена"
-    elif any(status == "В работе" for status in statuses):
-        task.status = "В работе"
+    if all(status == StatusEnum.COMPLETED for status in statuses):
+        task.status = StatusEnum.COMPLETED
+    elif any(status == StatusEnum.IN_WORK for status in statuses):
+        task.status = StatusEnum.IN_WORK
 
     await db.commit()
 
@@ -386,3 +391,43 @@ async def update_task_done_quantity(
         "updated_products": response,
         "updated_progress_percent": progress
     }
+
+@router.post("/tasks/{task_id}/sheets")
+async def upload_sheets(
+    data: SheetsCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    new_sheet = Sheets(
+        width=data.width,
+        length=data.length,
+        quantity=data.quantity,
+        task_id=data.task_id
+    )
+    db.add(new_sheet)
+    await db.commit()
+    return  {
+                "id": new_sheet.id,
+                "count": new_sheet.quantity,
+                "width": new_sheet.width,
+                "length": new_sheet.length
+            }
+
+@router.delete("/tasks/{task_id}/sheets/{sheet_id}")
+async def delete_sheet(
+    task_id: int,
+    sheet_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Sheets).where(Sheets.id == sheet_id)
+    )
+    sheet = result.scalar_one_or_none()
+    if not sheet:
+        raise HTTPException(status_code=404, detail="Лист не найден")
+    if sheet.task_id != task_id:
+        raise HTTPException(status_code=400, detail="Лист не принадлежит задаче")
+    await db.delete(sheet)
+    await db.commit()
+    return {"success": True}
+
+

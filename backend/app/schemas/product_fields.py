@@ -22,7 +22,6 @@ product_fields_by_type = {
     ],
     ProductTypeEnum.CASSETTE: [
         {"name": "cassette_type", "label": "Тип кассеты", "type": "select", "options": [{"value": ct.value, "name": ct.name} for ct in CassetteTypeEnum]},
-        {"name": "description", "label": "Описание", "type": "text"},
     ],
     ProductTypeEnum.LINEAR_PANEL: [
         {"name": "field", "label": "Поле", "type": "number"},
@@ -33,7 +32,8 @@ product_fields_by_type = {
     ProductTypeEnum.SHEET: [],
 }
 
-fields = [{"name": "quantity", "label": "Количество", "type": "number"},
+fields = [{"name": "description", "label": "Описание", "type": "text"},
+          {"name": "quantity", "label": "Количество", "type": "number"},
           {"name": "color", "label": "Цвет", "type": "text"},
           {"name": "painting", "label": "Красится?", "type": "checkbox"}]
 

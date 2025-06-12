@@ -202,6 +202,7 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
                 color=tp.color,
                 painting=tp.painting,
                 quantity=tp.quantity,
+                description=tp.description,
                 done_quantity=tp.done_quantity,
                 product_fields=product_fields
             )
@@ -373,7 +374,6 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
                     db.add(Cassette(
                         product_id=product.id,
                         cassette_type=prod.cassette_type,
-                        description=prod.description
                     ))
                 elif product_entry.product_name == ProductTypeEnum.LINEAR_PANEL:
                     db.add(LinearPanel(
@@ -392,6 +392,7 @@ async def create_bid_with_tasks(user: User, bid_info: BidCreate, files: List[Upl
                     painting=bool(prod.painting) if prod.painting is not None else False,
                     quantity=prod.quantity,
                     done_quantity=0,
+                    description=prod.description if prod.description else None
                 ))
 
         # Загрузка файлов
