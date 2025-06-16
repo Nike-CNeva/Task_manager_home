@@ -135,31 +135,39 @@ async function deleteComment(commentId) {
   }
 }
 
-async function updateMaterialField(fieldName, fieldValue) {
+async function updateMaterialField(fieldName, fieldValue, fromWaste = null) {
   try {
     const payload = {}
 
     if (fieldName === 'weight') {
-      const currentWeight = Number(task.value.tasks[0].material.weight) || 0
-      const newWeight = currentWeight + Number(fieldValue)
-      payload[fieldName] = newWeight
+      payload.weight = Number(fieldValue)
+      payload.from_waste = !!fromWaste
     } else {
       payload[fieldName] = fieldValue
     }
 
     await api.patch(`/tasks/${task.value.tasks[0].id}/material`, payload)
 
-    // Обновляем локальное состояние
-    task.value.tasks[0].material[fieldName] = payload[fieldName]
-
-    // Скрываем поля ввода
+    // Обновим локально (при необходимости, или просто перезагрузим задачу)
+    if (fieldName === 'waste') {
+      task.value.tasks[0].material.waste = fieldValue
+    }
+    if (fieldName === 'weight') {
+      task.value.tasks[0].material.weights.push({
+        id: Date.now(), // временный ID
+        weight: Number(fieldValue),
+        from_waste: !!fromWaste,
+      })
+    }
+    // Закрываем форму
     if (fieldName === 'weight') showWeightInput.value = false
-    if (fieldName === 'from_waste') showWasteInput.value = false
+    if (fieldName === 'waste') showWasteInput.value = false
 
     // Уведомление
     const labels = {
       weight: 'Вес',
       from_waste: 'Флаг "из отходов"',
+      waste: 'Отходность'
     }
 
     alert(`${labels[fieldName] || fieldName} обновлён(а)`)
@@ -169,11 +177,13 @@ async function updateMaterialField(fieldName, fieldValue) {
     const labels = {
       weight: 'вес',
       from_waste: 'флаг "из отходов"',
+      waste: 'отходность'
     }
 
     alert(`Не удалось обновить ${labels[fieldName] || fieldName}.`)
   }
 }
+
 async function handleFileUpload(event) {
   const files = event.target.files
   if (!files.length) return
@@ -182,6 +192,7 @@ async function handleFileUpload(event) {
   for (let file of files) {
     formData.append('files', file)
   }
+  formData.append('task_id', task.value.tasks[0].id)
   try {
     const response = await api.post(`/tasks/${task.value.id}/files`, formData, {
       headers: {
@@ -190,6 +201,7 @@ async function handleFileUpload(event) {
     })
     task.value.files.push(...response.data)
     alert('Файлы загружены')
+    await fetchTask(task.value.tasks[0].id)
   } catch (error) {
     console.error('Ошибка загрузки файлов:', error)
     alert('Не удалось загрузить файлы.')
@@ -228,6 +240,9 @@ async function updateTaskStatus(newStatus) {
     alert('Не удалось обновить статус.')
   }
 }
+// Цехи, которым можно начинать при статусе "В работе" у предыдущего
+const ALLOWED_IF_PREV_IN_PROGRESS = ["Координатка", "Гибка", "Покраска"];
+
 const WORKSHOP_ORDER = [
   "Инженер",
   "Резка",
@@ -251,20 +266,16 @@ const canShowInWorkButton = computed(() => {
   }
 
   const workshops = task.value.tasks[0].workshops;
-
   const allAreNew = workshops.every(w => w.status === "Новая");
 
   if (allAreNew) {
     const firstNewWorkshopName = WORKSHOP_ORDER.find(orderName =>
       workshops.some(w => w.workshop_name === orderName && w.status === "Новая")
     );
-
     const hasAccess = store.getters.hasWorkshop([firstNewWorkshopName]);
-
     return !!firstNewWorkshopName && hasAccess;
   }
 
-  // Если не все "Новая" — идём по обычной логике
   for (let i = 0; i < WORKSHOP_ORDER.length; i++) {
     const workshopName = WORKSHOP_ORDER[i];
     const workshopInfo = workshops.find(w => w.workshop_name === workshopName);
@@ -272,14 +283,28 @@ const canShowInWorkButton = computed(() => {
 
     if (workshopInfo.status !== "Новая" && workshopInfo.status !== "На удержании") continue;
 
-    const allPrevReady = WORKSHOP_ORDER.slice(0, i).every(prevName => {
-      const prevWorkshop = workshops.find(w => w.workshop_name === prevName);
-      return !prevWorkshop || prevWorkshop.status === "Выполнена";
-    });
-    if (!allPrevReady) continue;
+    // Проверка предыдущих цехов
+    let prevIsReady = true;
+    if (ALLOWED_IF_PREV_IN_PROGRESS.includes(workshopName)) {
+      // Только ближайший предыдущий
+      const prevWorkshopName = WORKSHOP_ORDER[i - 1];
+      const prevWorkshop = workshops.find(w => w.workshop_name === prevWorkshopName);
+      prevIsReady =
+        !prevWorkshop || ["В работе", "Выполнена"].includes(prevWorkshop.status);
+    } else {
+      // Все предыдущие должны быть завершены
+      prevIsReady = WORKSHOP_ORDER.slice(0, i).every(prevName => {
+        const prevWorkshop = workshops.find(w => w.workshop_name === prevName);
+        return !prevWorkshop || prevWorkshop.status === "Выполнена";
+      });
+    }
+
+    if (!prevIsReady) continue;
+
     const hasAccess = store.getters.hasWorkshop([workshopName]);
     if (hasAccess) return true;
   }
+
   return false;
 });
 
@@ -465,21 +490,76 @@ const isTaskReadyEngineer = computed(() => {
   const hasSheets = firstTask.sheets.length > 0
 
   if (!Array.isArray(task.value.files)) {
+  return false
+}
+
+const hasNcFiles = task.value.files.some(file => {
+  const res = typeof file.filename === 'string' && file.filename.toLowerCase().endsWith('.nc')
+  return res
+})
+
+const result = hasSheets && hasNcFiles
+
+return result
+})
+
+
+const isTaskReadyCutting = computed(() => {
+  if (!Array.isArray(task.value.tasks) || task.value.tasks.length === 0) {
     return false
   }
 
-  const hasNcFiles = task.value.files.some(file => {
-    typeof file.filename === 'string' && file.filename.toLowerCase().endsWith('.nc')
-  })
+  const weight = task.value.tasks[0].material?.weights
 
-  const result = hasSheets && hasNcFiles
+  return Array.isArray(weight) && weight.length > 0
+})
 
-  return result
+const isTaskQuantityReady = computed(() => {
+  const tasks = task.value.tasks
+
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return false
+  }
+
+  const currentTask = tasks[0]
+
+  // Проверяем количество
+  const isQuantityComplete = currentTask.done_quantity === currentTask.total_quantity
+
+  return isQuantityComplete
+})
+
+const arePreviousWorkshopsDone = computed(() => {
+  const workshops = task.value.tasks[0].workshops
+  const userWorkshops = currentUser.value?.workshops || []
+  if (!Array.isArray(workshops) || !Array.isArray(userWorkshops)) {
+    return false
+  }
+
+  // Находим самый ранний цех пользователя по порядку
+  const userWorkshopIndexes = userWorkshops
+    .map(w => WORKSHOP_ORDER.indexOf(w.name))
+    .filter(index => index !== -1)
+
+  if (userWorkshopIndexes.length === 0) return false
+
+  const minUserIndex = Math.min(...userWorkshopIndexes)
+
+  // Все предыдущие цеха до первого пользовательского должны быть "Выполнена"
+  const requiredWorkshopNames = WORKSHOP_ORDER.slice(0, minUserIndex)
+
+  return requiredWorkshopNames.every(name =>
+    workshops.some(w => w.workshop_name === name && w.status === "Выполнена")
+  )
 })
 
 const shouldShowSection = computed(() => {
   if (store.getters.hasRole('Инженер')) {
     return isTaskReadyEngineer.value && hasWorkshopInProgress.value
+    } else if (store.getters.hasWorkshop(['Резка'])) {
+    return isTaskReadyCutting.value && hasWorkshopInProgress.value
+    } else if (store.getters.hasWorkshop(['Гибка'])) {
+    return isTaskQuantityReady.value && hasWorkshopInProgress.value && arePreviousWorkshopsDone.value
   } else {
     return store.getters.hasWorkshop(taskWorkshopNames.value) && hasWorkshopInProgress.value
   }
@@ -504,7 +584,7 @@ const sortedWorkshops = computed(() => {
       <button v-if="canShowInWorkButton" class="btn btn-warning" @click="updateTaskStatus('В работе')">🚧 В работу</button>
 
       <button v-if="shouldShowSection" class="btn btn-success" @click="updateTaskStatus('Выполнена')">✅ Выполнена</button>
-      <button v-if="hasWorkshopInProgress && (!$store.getters.hasRole('Инженер') && $store.getters.hasWorkshop(['Резка']))" class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">➕ Кол-во</button>
+      <button v-if="hasWorkshopInProgress && $store.getters.hasWorkshop(['Гибка']) && !isTaskQuantityReady" class="btn btn-primary" @click="showQuantityInput = !showQuantityInput">➕ Кол-во</button>
       <div v-if="showQuantityInput" class="input-block">
         <label>Введите количество готовой продукции:</label>
         <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="tp.id">
@@ -524,7 +604,7 @@ const sortedWorkshops = computed(() => {
           Из отходов
         </label>
 
-        <button class="btn btn-primary" @click="updateMaterial">Сохранить</button>
+        <button class="btn btn-primary" @click="updateMaterialField('weight', newWeight, fromWaste)">Сохранить</button>
       </div>
 
       <button v-if="hasWorkshopInProgress && ( $store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер') )" class="btn btn-secondary" @click="showWasteInput = true">♻️ Отходы</button>
@@ -572,38 +652,56 @@ const sortedWorkshops = computed(() => {
 
       <p><strong>Количество:</strong> {{ task.tasks[0]?.total_quantity || '—' }}</p>
 
-      <p v-if="!$store.getters.hasRole('Инженер')"><strong>Готово:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
+      <p v-if="!$store.getters.hasRole('Инженер') && !$store.getters.hasWorkshop(['Резка', 'Координатка'])"><strong>Готово:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
 
-      <p><strong>Материал:</strong>
+      <p><strong>Материал:</strong></p>
+      <p>
         <span v-if="task.tasks[0]?.material">
           {{ task.tasks[0].material.type }} {{ task.tasks[0].material.color }} {{ task.tasks[0].material.thickness }}
         </span>
         <span v-else>—</span>
       </p>
 
-      <p v-if="!$store.getters.hasRole('Инженер')"><strong>Вес:</strong> {{ task.tasks[0]?.material?.weight ?? '—' }} кг</p>
-
-      <p><strong>Отходность:</strong> {{ task.tasks[0]?.material?.waste ?? '—' }} %</p>
-
-      <p><strong>Листы:</strong></p>
-      <ul v-if="task.tasks[0]?.sheets?.length">
-        <li 
-          v-for="sheet in task.tasks[0].sheets" 
-          :key="sheet.id" 
-          style="display: flex; align-items: center; gap: 8px;"
-        >
-          <span>{{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}</span>
-          <button 
-            v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')"
-            @click="removeSheet(task.tasks[0].id, sheet.id)" 
-            style="background: none; border: none; color: red; font-weight: bold; cursor: pointer;"
+      <p v-if="!$store.getters.hasRole('Инженер') && !$store.getters.hasWorkshop(['Гибка', 'Координатка'])">
+        <strong>Вес:</strong>
+      </p>
+      <p v-if="!$store.getters.hasRole('Инженер') && !$store.getters.hasWorkshop(['Гибка', 'Координатка'])">
+        <span v-if="task.tasks[0]?.material?.weights?.length">
+          <span v-for="(w, index) in task.tasks[0].material.weights" :key="w.id">
+            {{ w.weight }} кг<span v-if="w.from_waste"> (из отходов)</span><span v-if="index !== task.tasks[0].material.weights.length - 1"><br> </span>
+          </span>
+        </span>
+        <span v-else>—</span>
+      </p>
+      <p v-if="$store.getters.hasRole('Инженер') || $store.getters.hasRole('Администратор')">
+        <strong>Отходность:</strong>
+        {{ task.tasks[0]?.material?.waste != null ? task.tasks[0].material.waste.toFixed(1) : '—' }} %
+      </p>
+      <div v-if="$store.getters.hasRole('Инженер') || $store.getters.hasRole('Администратор') || $store.getters.hasWorkshop(['Резка', 'Координатка'])">
+        <p><strong>Листы:</strong></p>
+        <ul v-if="task.tasks[0]?.sheets?.length">
+          <li 
+            v-for="sheet in [...task.tasks[0].sheets].sort((a, b) => {
+              if (b.length !== a.length) {
+                return b.length - a.length
+              }
+              return b.width - a.width
+            })"
+            :key="sheet.id"
+            style="display: flex; align-items: center; gap: 8px;"
           >
-            ❌
-          </button>
-        </li>
-      </ul>
-      <p v-else>—</p>
-
+            <span>{{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}</span>
+            <button 
+              v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')"
+              @click="removeSheet(task.tasks[0].id, sheet.id)" 
+              style="background: none; border: none; color: red; font-weight: bold; cursor: pointer;"
+            >
+              ❌
+            </button>
+          </li>
+        </ul>
+        <p v-else>—</p>
+      </div>
       <p><strong>Срочность:</strong> {{ task.tasks[0]?.urgency || '—' }}</p>
 
       <p v-if="$store.getters.hasRole('Администратор')"><strong>Статус:</strong> {{ task.tasks[0]?.status || '—' }}</p>

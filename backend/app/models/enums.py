@@ -98,3 +98,4 @@ class FileType(str, Enum):
     WORD = "word"
     DXF = "dxf"
     DWG = "dwg"
+    SYSTEM = "system"

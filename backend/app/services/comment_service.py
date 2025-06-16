@@ -22,6 +22,8 @@ async def add_comment(db: AsyncSession, bid_id: int, user_id: int, content: str)
 
     # Создаём комментарий
     comment = await db_service.create(Comment, comment_data)
+    await db.commit()
+    await db.refresh(comment)
 
     # Дозагружаем пользователя
     stmt = (

@@ -79,6 +79,7 @@ async def get_bids_with_tasks(current_user: User, db: AsyncSession) -> List[BidR
                 .selectinload(TaskProduct.product)
                 .selectinload(Product.linear_panel),
             selectinload(Task.material),
+            selectinload(Task.material).selectinload(Material.weights),
             selectinload(Task.sheets),
             selectinload(Task.responsible_users),
             selectinload(Task.workshops).selectinload(TaskWorkshop.workshop),
@@ -169,6 +170,7 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
             selectinload(Task.bid).selectinload(Bid.files),
             selectinload(Task.bid).selectinload(Bid.comments).selectinload(Comment.user),
             selectinload(Task.material),
+            selectinload(Task.material).selectinload(Material.weights),
             selectinload(Task.sheets),
             selectinload(Task.task_products)
             .selectinload(TaskProduct.product)

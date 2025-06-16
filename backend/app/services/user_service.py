@@ -72,6 +72,8 @@ async def create_user(db: AsyncSession, user_data: UserSaveForm, workshop_ids: L
         "password": hashed_password,
         "user_type": user_type_enum,
     })
+    await db.commit()
+    await db.refresh(new_user)
 
     # Привязка к цехам
     if workshop_ids:

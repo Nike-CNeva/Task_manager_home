@@ -1,4 +1,7 @@
 import mimetypes
+import pdfplumber
+import io
+import re
 from urllib.parse import quote
 import os
 import shutil
@@ -45,6 +48,8 @@ async def upload_bid_file(
 ) -> UploadedFileResponse:
     try:
         saved_file: Files = await file_service.save_file(bid_id, file, db)
+        await db.commit()
+        await db.refresh(saved_file)
         return UploadedFileResponse(
             filename=saved_file.filename,
             file_path=saved_file.file_path,
@@ -139,3 +144,4 @@ async def download_files_zip(bid_id: int, db: AsyncSession = Depends(get_db)):
 
     # Очистка временной папки можно делать через фоновую задачу
     return FileResponse(zip_path, filename=os.path.basename(zip_path))
+

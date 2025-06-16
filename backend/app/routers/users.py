@@ -16,6 +16,17 @@ from sqlalchemy.orm import selectinload
 
 router = APIRouter()
 
+@router.get("/admin/users/create", response_model=dict)
+async def create_user_form(current_user: User = Depends(get_current_user)):
+    if current_user.user_type != UserTypeEnum.ADMIN:
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
+    workshops = [workshop.value for workshop in WorkshopEnum]
+    roles = [role.value for role in UserTypeEnum]
+    return JSONResponse(content={
+        "roles": roles,
+        "workshops": workshops
+    })
+
 @router.get("/admin/users", response_model=List[UserWithWorkshops])
 async def admin_users(db: AsyncSession = Depends(get_db), current_user: UserRead = Depends(get_current_user)):
     if current_user.user_type != UserTypeEnum.ADMIN:
@@ -55,17 +66,6 @@ async def admin_user_details(db: AsyncSession = Depends(get_db), current_user: U
     )
     return user_with_workshops
 
-
-@router.get("/admin/users/create", response_model=dict)
-async def create_user_form(current_user: User = Depends(get_current_user)):
-    if current_user.user_type != UserTypeEnum.ADMIN:
-        raise HTTPException(status_code=403, detail="Доступ запрещён")
-    workshops = [workshop.value for workshop in WorkshopEnum]
-    roles = [role.value for role in UserTypeEnum]
-    return JSONResponse(content={
-        "roles": roles,
-        "workshops": workshops
-    })
 
 
 @router.post("/admin/users/save")

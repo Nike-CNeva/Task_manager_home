@@ -73,8 +73,7 @@ class AsyncDatabaseService:
         try:
             db_item = model(**data)
             self.db.add(db_item)
-            await self.db.commit()
-            await self.db.refresh(db_item)
+
             return db_item
         except IntegrityError as e:
             await self.db.rollback()

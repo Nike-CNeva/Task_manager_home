@@ -66,6 +66,12 @@ class ProductTRead(BaseModel):
     extension_bracket: ExtensionBracketRead | None = None
     linear_panel: LinearPanelRead | None = None
 
+class WeightReadShort(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    weight: float
+    from_waste: bool
 
 class MaterialReadShort(BaseModel):
     id: int
@@ -73,7 +79,7 @@ class MaterialReadShort(BaseModel):
     color: str
     thickness: MaterialThicknessEnum
     waste: Optional[float] = None
-    weight: Optional[float] = None
+    weights: Optional[List[WeightReadShort]] = []
 
 
 class TaskProductRead(BaseModel):
@@ -228,6 +234,7 @@ class TaskCreate(BaseModel):
     
 class MaterialUpdate(BaseModel):
     weight: Optional[float] = None
+    from_waste: Optional[bool] = None
     waste: Optional[float] = None
 
 class QuantityItem(BaseModel):

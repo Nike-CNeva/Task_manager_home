@@ -1,36 +1,31 @@
-from hmac import new
 import os
+import re
+from collections import defaultdict
 import shutil
-from zipfile import ZipFile
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from typing import List
-from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from websockets import Data
 from backend.app.core.dependencies import get_current_user, get_db
 from backend.app.models.bid import Bid, Customer
-from backend.app.models.enums import CassetteTypeEnum, FileType, KlamerTypeEnum, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
+from backend.app.models.enums import  FileType, ManagerEnum, MaterialThicknessEnum, MaterialTypeEnum, ProductTypeEnum, StatusEnum, UrgencyEnum, WorkshopEnum
 from backend.app.models.files import Files
-from backend.app.models.material import Sheets
-from backend.app.models.product import Product
+from backend.app.models.material import Sheets, Weight
 from backend.app.models.task import Task, TaskProduct, TaskWorkshop
 from backend.app.models.user import User
-from backend.app.models.workshop import WORKSHOP_ORDER, Workshop
+from backend.app.models.workshop import WORKSHOP_ORDER
 from backend.app.schemas.bid import BidCreate
 from backend.app.schemas.create_bid import ReferenceDataResponse
 from backend.app.schemas.customer import CustomerRead
-from backend.app.schemas.file import UploadedFileResponse
 from backend.app.schemas.product_fields import get_product_fields
 from backend.app.schemas.task import BidRead, FilesRead, MaterialUpdate, QuantityUpdateRequest, SheetsCreate
 from backend.app.schemas.user import EmployeeOut
-from backend.app.schemas.workshop import WorkshopRead
 from backend.app.services import task_service
 import json
 import logging
 
-from backend.app.services.file_service import get_files_for_bid, save_file
+from backend.app.services.file_service import extract_nest_data_and_image, save_file
 
 
 router = APIRouter()
@@ -88,20 +83,39 @@ async def delete_task(
 
             if bid:
                 # Получение всех файлов, связанных с заявкой
-                result = await db.execute(select(Files).where(Files.bid_id == bid_id))
+                result = await db.execute(
+                    select(Files).options(joinedload(Files.nest_file)).where(Files.bid_id == bid_id)
+                )
                 files = result.scalars().all()
 
                 for file in files:
-                    # Удаление файла с диска, если он существует
+                    # Удаление основного файла
                     if file.file_path and os.path.exists(file.file_path):
                         try:
                             os.remove(file.file_path)
                         except Exception as e:
-                            # Не критично, просто лог (если логируете)
                             print(f"Не удалось удалить файл {file.file_path}: {e}")
 
-                    # Удаление записи файла из базы
+                    # Удаление скриншота раскладки, если он есть
+                    if file.nest_file and file.nest_file.nest_screen_file_path:
+                        screen_path = file.nest_file.nest_screen_file_path
+                        if os.path.exists(screen_path):
+                            try:
+                                os.remove(screen_path)
+                            except Exception as e:
+                                print(f"Не удалось удалить скриншот {screen_path}: {e}")
+
+                    # Удаление записи файла и всех связанных данных
                     await db.delete(file)
+
+                # Попробовать удалить папку, если она пуста
+                if files:
+                    try:
+                        folder_path = os.path.dirname(files[0].file_path)
+                        if os.path.exists(folder_path) and os.path.isdir(folder_path):
+                            shutil.rmtree(folder_path, ignore_errors=True)
+                    except Exception as e:
+                        print(f"Не удалось удалить папку {folder_path}: {e}")
 
                 # Удаление заявки
                 await db.delete(bid)
@@ -217,25 +231,36 @@ async def update_material_data(
     if not task:
         raise HTTPException(status_code=404, detail="Задача не найдена")
 
-    if task.material:
-        if data.weight is not None:
-            if task.material.weight is None:
-                task.material.weight = data.weight
-            else:
-                task.material.weight = task.material.weight + data.weight
-        if data.waste is not None:
-            task.material.waste = data.waste
-        await session.commit()
-        return {"success": True}
-    else:
+    if not task.material:
         raise HTTPException(status_code=404, detail="Материал не найден")
+
+    # Добавление записи веса в таблицу Weight
+    if data.weight is not None:
+        new_weight = Weight(
+            material_id=task.material.id,
+            weight=data.weight,
+            from_waste=data.from_waste or False  # по умолчанию False
+        )
+        session.add(new_weight)
+
+    if data.waste is not None:
+        task.material.waste = data.waste
+
+    await session.commit()
+    return {"success": True}
 
 @router.post("/tasks/{bid_id}/files", response_model=List[FilesRead]) 
 async def upload_file_to_task(
     bid_id: int,
+    task_id: int = Form(...),
     files: List[UploadFile] = File([]),
     db: AsyncSession = Depends(get_db)
 ):
+    smtp = select(Bid).where(Bid.id == bid_id)
+    result = await db.execute(smtp)
+    bid = result.scalar_one_or_none()
+    if not bid:
+        raise HTTPException(status_code=404, detail="Заявка не найдена")
         # Валидация файлов по расширениям
     ext_map = {
         "jpg": FileType.PHOTO,
@@ -251,14 +276,82 @@ async def upload_file_to_task(
         "dwg": FileType.DWG,
     }
     files_save = []
+    waste = []
+    sheets = []
+
+    # Проверка и сохранение файлов
     for file in files:
         if '.' not in file.filename:
             raise HTTPException(status_code=400, detail="File must have an extension")
+
         ext = file.filename.rsplit('.', 1)[-1].lower()
         if ext not in ext_map:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file extension: {ext}")
-        file_save =  await save_file(bid_id, file, db)
+            raise HTTPException(status_code=400, detail=f"Unsupported file extension: {ext}")
+
+        # Сохраняем файл
+        file_save = await save_file(bid_id, file, db)
         files_save.append(file_save)
+
+        # Обработка PDF-файлов с именем, совпадающим с шаблоном task_number + числа
+        if ext == "pdf":
+            filename_wo_ext = file.filename.rsplit('.', 1)[0]
+            pattern = rf"^{bid.task_number}\d+$"
+
+            if re.match(pattern, filename_wo_ext):
+                data = await extract_nest_data_and_image(file_save.file_path, db)
+                try:
+                    waste_percent = float(data["sheet_utilization"].strip('%'))
+                    waste.append(waste_percent)
+                    sheets.append({
+                        "sheet_size": data["sheet_size"],
+                        "sheet_quantity": data["sheet_quantity"]
+                    })
+                except (ValueError, KeyError) as e:
+                    raise HTTPException(status_code=422, detail=f"Invalid data in PDF: {e}")
+
+    # Средний процент отходов
+    average_waste = sum(waste) / len(waste) if waste else 0
+
+    # Агрегация листов по размерам
+    sheets_aggregated = defaultdict(int)
+    for sheet in sheets:
+        sheets_aggregated[sheet["sheet_size"]] += int(sheet["sheet_quantity"])
+
+    # Преобразуем в список словарей
+    sheets = [
+        {"sheet_size": size, "sheet_quantity": qty}
+        for size, qty in sheets_aggregated.items()
+    ]
+
+    # Получаем задачу с материалом
+    stmt = select(Task).where(Task.id == task_id).options(selectinload(Task.material))
+    result = await db.execute(stmt)
+    task = result.scalar_one_or_none()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Обновляем отходность материала
+    if average_waste > 0 and task.material:
+        task.material.waste = 100 - average_waste
+
+    # Добавляем листы
+    for sheet in sheets:
+        try:
+            length, width = map(int, sheet["sheet_size"].split('x'))
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Invalid sheet size format: {sheet['sheet_size']}")
+
+        new_sheet = Sheets(
+            width=width,
+            length=length,
+            quantity=sheet["sheet_quantity"],
+            task_id=task_id
+        )
+        db.add(new_sheet)
+
+    await db.commit()
+
     return files_save
 
 @router.patch("/tasks/{task_id}/status")
@@ -269,7 +362,9 @@ async def update_workshop_status(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Task).options(selectinload(Task.workshops).selectinload(TaskWorkshop.workshop)).where(Task.id == task_id)
+        select(Task)
+        .options(selectinload(Task.workshops).selectinload(TaskWorkshop.workshop))
+        .where(Task.id == task_id)
     )
     task = result.scalars().first()
 
@@ -278,16 +373,12 @@ async def update_workshop_status(
 
     task_workshops = sorted(task.workshops, key=lambda w: WORKSHOP_ORDER.index(w.workshop.name))
 
-    # Получаем Enum-значения цехов пользователя
     user_workshop_names = {w.name for w in current_user.workshops}
-
-    # Отфильтровываем TaskWorkshop, к которым у пользователя есть доступ
     user_workshops = [w for w in task_workshops if w.workshop.name in user_workshop_names]
 
     if not user_workshops:
         raise HTTPException(status_code=403, detail="Нет доступа к цехам задачи")
 
-    # Находим первый доступный для пользователя цех, который не "Выполнена"
     target_workshop = next(
         (
             w for w in task_workshops
@@ -301,12 +392,33 @@ async def update_workshop_status(
 
     target_index = task_workshops.index(target_workshop)
 
-    for prev_workshop in task_workshops[:target_index]:
-        if prev_workshop.status != StatusEnum.COMPLETED:
-            raise HTTPException(status_code=400, detail="Предыдущие цеха не завершены")
+    # Цехи, которым разрешено стартовать при "В работе" у предыдущего
+    ALLOWED_IF_PREV_IN_PROGRESS = {"Координатка", "Гибка", "Покраска"}
 
+    # Проверка допуска к началу работы по зависимости от предыдущего цеха
+    if target_workshop.workshop.name in ALLOWED_IF_PREV_IN_PROGRESS:
+        # Только один предыдущий цех имеет значение
+        if target_index > 0:
+            prev = task_workshops[target_index - 1]
+            if prev.status not in {StatusEnum.COMPLETED, StatusEnum.IN_WORK}:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Предыдущий цех '{prev.workshop.name}' должен быть 'В работе' или 'Выполнена'",
+                )
+    else:
+        # Все предыдущие цехи должны быть завершены
+        for prev in task_workshops[:target_index]:
+            if prev.status != StatusEnum.COMPLETED:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Цех '{prev.workshop.name}' ещё не завершён",
+                )
+
+    # Обновляем статус целевого цеха
     target_workshop.status = new_status
-
+    if new_status == StatusEnum.COMPLETED:
+        target_workshop.progress_percent = 100.0
+    # Если это первый цех, переводим все остальные в "На удержании"
     if target_index == 0 and new_status == StatusEnum.IN_WORK:
         for w in task_workshops[1:]:
             w.status = StatusEnum.ON_HOLD
@@ -331,7 +443,7 @@ async def update_workshop_status(
 async def update_task_done_quantity(
     task_id: int,
     quantities: QuantityUpdateRequest,
-    session: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     updated_task_products = []
 
@@ -341,7 +453,7 @@ async def update_task_done_quantity(
             TaskProduct.task_id == task_id,
             TaskProduct.product_id == item.product_id
         )
-        result = await session.execute(stmt)
+        result = await db.execute(stmt)
         task_product = result.scalar_one_or_none()
 
         if not task_product:
@@ -363,9 +475,9 @@ async def update_task_done_quantity(
     # Получаем задачу со связанными продуктами и цехами
     stmt_task = select(Task).where(Task.id == task_id).options(
         selectinload(Task.task_products),
-        selectinload(Task.workshops),
+        selectinload(Task.workshops).selectinload(TaskWorkshop.workshop),
     )
-    result = await session.execute(stmt_task)
+    result = await db.execute(stmt_task)
     task = result.scalar_one_or_none()
 
     if not task:
@@ -373,11 +485,19 @@ async def update_task_done_quantity(
 
     progress = task.progress_percent
 
-    # Обновляем прогресс по цехам
-    for workshop in task.workshops:
-        workshop.progress_percent = progress
+    # Обновляем прогресс по нужным цехам
+    allowed_workshops = {
+        WorkshopEnum.PROFILE,
+        WorkshopEnum.KLAMER,
+        WorkshopEnum.BRACKET,
+        WorkshopEnum.EXTENSION_BRACKET,
+        WorkshopEnum.BENDING,
+    }
 
-    await session.commit()
+    for task_workshop in task.workshops:
+        if task_workshop.workshop.name in allowed_workshops:
+            task_workshop.progress_percent = progress
+        await db.commit()
 
     # Ответ
     response = [

@@ -22,7 +22,8 @@
           @click="toggle(index)"
           style="cursor: pointer;"
         >
-          <strong>Заявка №{{ bid.task_number }}</strong> — {{ bid.customer.name }} (Менеджер: {{ bid.manager }})
+          <strong>Заявка №{{ bid.task_number }}</strong> — {{ bid.customer.name }} (Менеджер: {{ bid.manager }}) Прогресс: {{ calculateBidProgress(bid).toFixed(1) }}%
+
         </div>
         <!-- Список задач -->
         <div v-show="expandedIndex === index" class="p-3">
@@ -51,7 +52,8 @@
                     @click="goToTask(task.id)"
                     :style="{ backgroundColor: getTaskBackground(task), cursor: 'pointer' }"
                   >
-                    <strong>Задача №{{ task.id }}</strong> — Всего: {{ task.total_quantity }}, Выполнено: {{ task.done_quantity }} ({{ task.progress_percent }}%)
+                  <strong>Задача №{{ task.id }}</strong> — Всего: {{ task.total_quantity }}, Выполнено: {{ task.done_quantity }} ({{ calculateTaskProgress(task).toFixed(1) }}%)
+
                   </td>
                 </tr>
 
@@ -136,56 +138,45 @@ function goToTask(id) {
 function toggle(index) {
   expandedIndex.value = expandedIndex.value === index ? null : index
 }
-function getBidBackground(bid) {
-  let allTasks = bid.tasks || []
-
-  if (allTasks.length === 0) return '#ffffff' // нет задач
-
-  const allStarted = allTasks.some(task => task.status !== 'Новая')
-  if (!allStarted) return '#ffffff' // все задачи не начаты
-
-  let totalProgress = 0
-  let workshopProgress = 0
-  let workshopCount = 0
-
-  allTasks.forEach(task => {
-    totalProgress += task.progress_percent || 0
-
-    // считаем процент выполненных цехов
-    const workshops = task.workshops || []
-    const doneWorkshops = workshops.filter(ws => ws.status === 'Выполнена').length
-    if (workshops.length > 0) {
-      workshopProgress += (doneWorkshops / workshops.length) * 100
-      workshopCount++
-    }
-  })
-
-  const avgProgress = totalProgress / allTasks.length
-  const avgWorkshop = workshopCount > 0 ? workshopProgress / workshopCount : 0
-
-  // Итоговый процент: смешанный по задачам и цехам
-  const percent = (avgProgress * 0.6 + avgWorkshop * 0.4)
-
-  // Цвет от жёлтого (60°) к зелёному (120°) в HSL
-  const hue = 60 + (percent / 100) * 60
-  return `hsl(${hue}, 100%, 85%)`
+function getColorByProgress(progress) {
+  if (progress === 0) return 'hsl(0, 0%, 100%)' // белый
+  if (progress <= 20) return 'hsl(60, 100%, 90%)' // светло-жёлтый
+  if (progress <= 50) return 'hsl(80, 100%, 85%)' // жёлто-зелёный
+  if (progress <= 80) return 'hsl(100, 100%, 80%)' // светло-зелёный
+  return 'hsl(120, 100%, 75%)' // зелёный
 }
+
+function getBidBackground(bid) {
+  if (!bid || !bid.tasks || bid.tasks.length === 0) return 'hsl(0, 0%, 100%)'
+
+  const progress = calculateBidProgress(bid)
+  return getColorByProgress(progress)
+}
+
 function getTaskBackground(task) {
-  if (!task) return '#ffffff'
+  if (!task) return 'hsl(0, 0%, 100%)'
 
   const status = task.status?.toLowerCase()?.trim()
-  if (status !== 'в работе' && status !== 'выполнена') return '#ffffff'
+  if (status !== 'в работе' && status !== 'выполнена') return 'hsl(0, 0%, 100%)'
 
-  const progress = task.progress_percent || 0
-
+  const progress = calculateTaskProgress(task)
+  return getColorByProgress(progress)
+}
+function calculateTaskProgress(task) {
   const workshops = task.workshops || []
-  const doneCount = workshops.filter(ws => ws.status?.toLowerCase()?.trim() === 'выполнена').length
-  const totalCount = workshops.length
-  const workshopPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0
+  if (workshops.length <= 1) {
+    return task.total_quantity ? (task.done_quantity / task.total_quantity) * 100 : 0
+  } else {
+    const doneCount = workshops.filter(ws => ws.status === 'Выполнена').length
+    return workshops.length ? (doneCount / workshops.length) * 100 : 0
+  }
+}
 
-  const total = (progress * 0.6 + workshopPercent * 0.4)
-  const hue = 60 + (total / 100) * 60
-  return `hsl(${hue}, 100%, 85%)`
+function calculateBidProgress(bid) {
+  const tasks = bid.tasks || []
+  if (tasks.length === 0) return 0
+  const total = tasks.reduce((acc, task) => acc + calculateTaskProgress(task), 0)
+  return total / tasks.length
 }
 </script>
 
