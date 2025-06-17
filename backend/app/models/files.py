@@ -28,6 +28,7 @@ class NestFile(Base):
     time_per_sheet: Mapped[str] = mapped_column(String(50), nullable=False)
     nest_notes: Mapped[str] = mapped_column(String(255), nullable=True)
     sheet_quantity: Mapped[int] = mapped_column(nullable=False)
+    sheet_quantity_done: Mapped[int] = mapped_column(nullable=True)
     nest_screen_file_path: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Связь с Files
