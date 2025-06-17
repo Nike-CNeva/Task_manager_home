@@ -59,6 +59,7 @@ assets_dir = os.path.join(frontend_dir, "assets")
 
 app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+app.mount("/uploads", StaticFiles(directory="/app/uploads"), name="uploads")
 # Отдаём index.html по умолчанию
 @app.get("/")
 def serve_frontend():

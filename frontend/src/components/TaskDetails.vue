@@ -24,8 +24,10 @@ const productType = computed(() => {
   const product = task.value?.tasks?.[0]?.task_products?.[0]?.product
   return product?.type || null
 })
+const sheetDoneInput = ref(null);
 const fileInput = ref(null);
-
+const selectedNestFile = ref(null);
+const originalDetails = ref(null); // сохраняем исходное состояние
 const triggerFileInput = () => {
   fileInput.value.click();
 };
@@ -571,14 +573,27 @@ const sortedWorkshops = computed(() => {
     .map(name => workshops.find(ws => ws.workshop_name === name))
     .filter(Boolean) // убираем undefined, если цеха нет в задаче
 })
-
+function showNestDetails(nestFile) {
+  if (!originalDetails.value) {
+    originalDetails.value = { ...task.value.details }; // сохраняем оригинальные данные
+  }
+  selectedNestFile.value = nestFile;
+}
+function resetDetails() {
+  selectedNestFile.value = null;
+}
+function confirmSheetDone() {
+  // Здесь ты можешь сделать запрос на сервер или обновить данные локально
+  selectedNestFile.sheet_quantity_done = sheetDoneInput.value;
+  console.log('Подтверждено:', sheetDoneInput.value);
+}
 </script>
 
 <template>
   <div v-if="task" class="task-container">
     <!-- Боковая панель управления -->
     <aside class="sidebar">
-      <h2>Управление 🛠️</h2>
+      <h2>🛠️ Управление</h2>
       <button class="btn btn-secondary" @click="goBack">⬅️ Назад</button>
 
       <button v-if="canShowInWorkButton" class="btn btn-warning" @click="updateTaskStatus('В работе')">🚧 В работу</button>
@@ -627,120 +642,240 @@ const sortedWorkshops = computed(() => {
 
       <button v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')" class="btn btn-secondary" @click="triggerFileInput">📎 Файлы</button>
       <input ref="fileInput" type="file" multiple style="display: none" @change="handleFileUpload" />
-
       <button v-if="$store.getters.hasRole('Администратор')" class="btn btn-danger" @click="() => deleteTask(task.tasks[0].id)">🗑️ Удалить</button>
+
+      <div v-if="task.nest_files?.length && $store.getters.hasWorkshop(['Координатка'])">
+        <h3>🧩 Nest-файлы</h3>
+        <div v-for="nestFile in task.nest_files" :key="nestFile.id" class="nest-file-button">
+          <button class="btn btn-secondary" @click="showNestDetails(nestFile)" style="width: 100%">
+            📄 {{ nestFile.nc_file_name || `NEST ${nestFile.nest_id}` }}
+          </button>
+        </div>
+        <button
+            v-if="selectedNestFile"
+            class="btn btn-secondary"
+            @click="resetDetails"
+            style="width: 100%"
+          >
+          ⬅️ Назад
+          </button>
+      </div>
+
     </aside>
 
     <!-- Основной блок с деталями -->
     <main class="details">
-      <h2>Детали задачи №{{ task.task_number }}</h2>
+      <div v-if="selectedNestFile" style="display: flex; flex-direction: column; gap: 16px;">
+        <h3 class="text-lg font-bold mb-2">NC-файл: {{ selectedNestFile.nc_file_name }}</h3>
+        <img :src="selectedNestFile.nest_screen_file_path.replace('/app/backend/app', '')" alt="nest preview" class="mt-2 max-w-sm rounded" />
+        <div class="nest-info-container">
+          <!-- Материал и Толщина -->
+          <div class="info-row">
+            <div class="info-pair">
+              <span class="info-label">Материал:</span>
+              <span class="info-value">{{ selectedNestFile.material }}</span>
+            </div>
+            <div class="info-pair">
+              <span class="info-label">Толщина:</span>
+              <span class="info-value">{{ selectedNestFile.thickness }}</span>
+            </div>
+          </div>
 
-      <p><strong>Заказчик:</strong> {{ task.customer?.name || '—' }}</p>
+          <!-- Размер листа и Листов -->
+          <div class="info-row">
+            <div class="info-pair">
+              <span class="info-label">Размер листа:</span>
+              <span class="info-value">{{ selectedNestFile.sheet_size }}</span>
+            </div>
+            <div class="info-pair">
+              <span class="info-label">Листов:</span>
+              <span class="info-value">{{ selectedNestFile.sheet_quantity }}</span>
+            </div>
+            <div class="info-pair items-center gap-2 flex">
+              <span class="info-label">Листов изготовлено:</span>
+              
+              <!-- Поле ввода -->
+              <input
+                type="number"
+                class="border rounded px-2 py-1 w-16"
+                v-model.number="sheetDoneInput"
+                :placeholder="selectedNestFile.sheet_quantity_done || 0"
+              />
 
-      <p><strong>Менеджер:</strong> {{ task.manager || '—' }}</p>
-
-      <p><strong>Тип продукции:</strong> {{ productType || '—' }}</p>
-
-      <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="index" class="subtask-block">
-        <h3>Продукт №{{ index + 1 }}</h3>
-        <ul v-if="tp.product_fields?.length">
-          <li v-for="field in tp.product_fields" :key="field.name">
-            <strong>{{ field.label }}:</strong> {{ getProductFieldValue(tp, field.name) }}
-          </li>
-        </ul>
+              <!-- Кнопка подтверждения -->
+              <button @click="confirmSheetDone" class="text-green-600 hover:text-green-800">
+                ✅
+              </button>
+            </div>
+          </div>
+          <div class="info-row">
+          <div class="info-path">
+            <span class="info-label">Положение зажимов:</span>
+            <span class="path">
+              1:{{ selectedNestFile.clamp_location.clamp_1 }}
+              2:{{ selectedNestFile.clamp_location.clamp_2 }}
+              3:{{ selectedNestFile.clamp_location.clamp_3 }}
+            </span>
+          </div>
+        </div>
+        
+          <!-- Путь к файлу -->
+          <div class="info-path">
+            <span class="info-label">Путь к файлу (по старому):</span>
+            <span class="info-value path" title="{{ selectedNestFile.nest_notes }}">{{ selectedNestFile.nest_notes }}</span>
+          </div>
+        </div>
+        <!-- Вывести parts и tools при необходимости -->
+        <p>
+        <h4>Детали:</h4>
+        <div v-if="selectedNestFile.parts?.length">
+          <div style="display: flex; font-weight: bold; border-bottom: 1px solid #ccc;">
+            <div style="flex: 1;">Номер</div>
+            <div style="flex: 2;">Название</div>
+            <div style="flex: 1;">Количество</div>
+            <div style="flex: 2;">Время на деталь</div>
+          </div>
+          <div v-for="part in selectedNestFile.parts" :key="part.id" style="display: flex; border-bottom: 1px solid #eee;">
+            <div style="flex: 1;">{{ part.part_id }}</div>
+            <div style="flex: 2;">{{ part.name }}</div>
+            <div style="flex: 1;">{{ part.quantity }}</div>
+            <div style="flex: 2;">{{ part.time_per_part }}</div>
+          </div>
+        </div>
+        </p>
+        <p>
+        <h4>Инструменты:</h4>
+        <div v-if="selectedNestFile.tools?.length">
+          <div style="display: flex; font-weight: bold; border-bottom: 1px solid #ccc;">
+            <div style="flex: 1;">Станция</div>
+            <div style="flex: 2;">Инструмент</div>
+            <div style="flex: 1;">Размер</div>
+            <div style="flex: 1;">Угол</div>
+            <div style="flex: 1;">Матрица</div>
+            <div style="flex: 1;">Удары</div>
+          </div>
+          <div v-for="tool in selectedNestFile.tools" :key="tool.id" style="display: flex; border-bottom: 1px solid #eee;">
+            <div style="flex: 1;">{{ tool.station }}</div>
+            <div style="flex: 2;">{{ tool.tool }}</div>
+            <div style="flex: 1;">{{ tool.size }}</div>
+            <div style="flex: 1;">{{ tool.angle }}</div>
+            <div style="flex: 1;">{{ tool.die }}</div>
+            <div style="flex: 1;">{{ tool.hits }}</div>
+          </div>
+        </div>
+        </p>
       </div>
+      <div v-else>
+        <!-- исходное отображение task.value.details -->
+        <h2>Детали задачи №{{ task.task_number }}</h2>
 
-      <p><strong>Количество:</strong> {{ task.tasks[0]?.total_quantity || '—' }}</p>
+        <p><strong>Заказчик:</strong> {{ task.customer?.name || '—' }}</p>
 
-      <p v-if="!$store.getters.hasRole('Инженер') && !$store.getters.hasWorkshop(['Резка', 'Координатка'])"><strong>Готово:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
+        <p><strong>Менеджер:</strong> {{ task.manager || '—' }}</p>
 
-      <p><strong>Материал:</strong></p>
-      <p>
-        <span v-if="task.tasks[0]?.material">
-          {{ task.tasks[0].material.type }} {{ task.tasks[0].material.color }} {{ task.tasks[0].material.thickness }}
-        </span>
-        <span v-else>—</span>
-      </p>
+        <p><strong>Тип продукции:</strong> {{ productType || '—' }}</p>
 
-      <p v-if="!$store.getters.hasRole('Инженер') && !$store.getters.hasWorkshop(['Гибка', 'Координатка'])">
-        <strong>Вес:</strong>
-      </p>
-      <p v-if="!$store.getters.hasRole('Инженер') && !$store.getters.hasWorkshop(['Гибка', 'Координатка'])">
-        <span v-if="task.tasks[0]?.material?.weights?.length">
-          <span v-for="(w, index) in task.tasks[0].material.weights" :key="w.id">
-            {{ w.weight }} кг<span v-if="w.from_waste"> (из отходов)</span><span v-if="index !== task.tasks[0].material.weights.length - 1"><br> </span>
+        <div v-for="(tp, index) in task.tasks[0]?.task_products || []" :key="index" class="subtask-block">
+          <h3>Продукт №{{ index + 1 }}</h3>
+          <ul v-if="tp.product_fields?.length">
+            <li v-for="field in tp.product_fields" :key="field.name">
+              <strong>{{ field.label }}:</strong> {{ getProductFieldValue(tp, field.name) }}
+            </li>
+          </ul>
+        </div>
+
+        <p><strong>Количество:</strong> {{ task.tasks[0]?.total_quantity || '—' }}</p>
+
+        <p v-if="!$store.getters.hasRole('Инженер') && !$store.getters.hasWorkshop(['Резка', 'Координатка'])"><strong>Готово:</strong> {{ task.tasks[0]?.done_quantity || '—' }}</p>
+
+        <p><strong>Материал:</strong></p>
+        <p>
+          <span v-if="task.tasks[0]?.material">
+            {{ task.tasks[0].material.type }} {{ task.tasks[0].material.color }} {{ task.tasks[0].material.thickness }}
           </span>
-        </span>
-        <span v-else>—</span>
-      </p>
-      <p v-if="$store.getters.hasRole('Инженер') || $store.getters.hasRole('Администратор')">
-        <strong>Отходность:</strong>
-        {{ task.tasks[0]?.material?.waste != null ? task.tasks[0].material.waste.toFixed(1) : '—' }} %
-      </p>
-      <div v-if="$store.getters.hasRole('Инженер') || $store.getters.hasRole('Администратор') || $store.getters.hasWorkshop(['Резка', 'Координатка'])">
-        <p><strong>Листы:</strong></p>
-        <ul v-if="task.tasks[0]?.sheets?.length">
-          <li 
-            v-for="sheet in [...task.tasks[0].sheets].sort((a, b) => {
-              if (b.length !== a.length) {
-                return b.length - a.length
-              }
-              return b.width - a.width
-            })"
-            :key="sheet.id"
-            style="display: flex; align-items: center; gap: 8px;"
-          >
-            <span>{{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}</span>
-            <button 
-              v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')"
-              @click="removeSheet(task.tasks[0].id, sheet.id)" 
-              style="background: none; border: none; color: red; font-weight: bold; cursor: pointer;"
+          <span v-else>—</span>
+        </p>
+
+        <p v-if="!$store.getters.hasRole('Инженер') && !$store.getters.hasWorkshop(['Гибка', 'Координатка'])">
+          <strong>Вес:</strong>
+        </p>
+        <p v-if="!$store.getters.hasRole('Инженер') && !$store.getters.hasWorkshop(['Гибка', 'Координатка'])">
+          <span v-if="task.tasks[0]?.material?.weights?.length">
+            <span v-for="(w, index) in task.tasks[0].material.weights" :key="w.id">
+              {{ w.weight }} кг<span v-if="w.from_waste"> (из отходов)</span><span v-if="index !== task.tasks[0].material.weights.length - 1"><br> </span>
+            </span>
+          </span>
+          <span v-else>—</span>
+        </p>
+        <p v-if="$store.getters.hasRole('Инженер') || $store.getters.hasRole('Администратор')">
+          <strong>Отходность:</strong>
+          {{ task.tasks[0]?.material?.waste != null ? task.tasks[0].material.waste.toFixed(1) : '—' }} %
+        </p>
+        <div v-if="$store.getters.hasRole('Инженер') || $store.getters.hasRole('Администратор') || $store.getters.hasWorkshop(['Резка', 'Координатка'])">
+          <p><strong>Листы:</strong></p>
+          <ul v-if="task.tasks[0]?.sheets?.length">
+            <li 
+              v-for="sheet in [...task.tasks[0].sheets].sort((a, b) => {
+                if (b.length !== a.length) {
+                  return b.length - a.length
+                }
+                return b.width - a.width
+              })"
+              :key="sheet.id"
+              style="display: flex; align-items: center; gap: 8px;"
             >
-              ❌
-            </button>
+              <span>{{ sheet.count }} листов {{ sheet.width }}x{{ sheet.length }}</span>
+              <button 
+                v-if="$store.getters.hasRole('Администратор') || $store.getters.hasRole('Инженер')"
+                @click="removeSheet(task.tasks[0].id, sheet.id)" 
+                style="background: none; border: none; color: red; font-weight: bold; cursor: pointer;"
+              >
+                ❌
+              </button>
+            </li>
+          </ul>
+          <p v-else>—</p>
+        </div>
+        <p><strong>Срочность:</strong> {{ task.tasks[0]?.urgency || '—' }}</p>
+
+        <p v-if="$store.getters.hasRole('Администратор')"><strong>Статус:</strong> {{ task.tasks[0]?.status || '—' }}</p>
+
+        <p><strong>Статус цехов:</strong></p>
+        <ul v-if="sortedWorkshops.length">
+          <li v-for="ws in sortedWorkshops" :key="ws.workshop_name">
+            {{ ws.workshop_name }}: {{ ws.status }}
           </li>
         </ul>
         <p v-else>—</p>
-      </div>
-      <p><strong>Срочность:</strong> {{ task.tasks[0]?.urgency || '—' }}</p>
 
-      <p v-if="$store.getters.hasRole('Администратор')"><strong>Статус:</strong> {{ task.tasks[0]?.status || '—' }}</p>
+        <p><strong>Дата создания:</strong> {{ formatDate(task.tasks[0]?.created_at) }}</p>
 
-      <p><strong>Статус цехов:</strong></p>
-      <ul v-if="sortedWorkshops.length">
-        <li v-for="ws in sortedWorkshops" :key="ws.workshop_name">
-          {{ ws.workshop_name }}: {{ ws.status }}
-        </li>
-      </ul>
-      <p v-else>—</p>
+        <p><strong>Дата завершения:</strong> {{ formatDate(task.tasks[0]?.completed_at) }}</p>
 
-      <p><strong>Дата создания:</strong> {{ formatDate(task.tasks[0]?.created_at) }}</p>
-
-      <p><strong>Дата завершения:</strong> {{ formatDate(task.tasks[0]?.completed_at) }}</p>
-
-      <div v-if="task?.files?.length">
-        <details class="files-block">
-          <summary>📁 Файлы ({{ task.files.length }})</summary>
-          <div class="mt-2">
-            <button @click="downloadAllAsZip" class="btn">📦 Скачать архивом</button>
-            <div class="file-grid mt-2">
-              <div
-                v-for="(fileChunk, index) in chunkedFiles"
-                :key="index"
-                class="file-column"
-              >
-                <ul>
-                  <li v-for="file in fileChunk" :key="file.id" class="file-row">
-                    <span @click="openFile(file)" class="clickable-filename">📄 {{ file.filename }}</span>
-                    <button v-if="$store.getters.hasRole('Администратор')" @click="deleteFile(file)" class="btn btn-sm">❌</button>
-                  </li>
-                </ul>
+        <div v-if="task?.files?.length">
+          <details class="files-block">
+            <summary>📁 Файлы ({{ task.files.length }})</summary>
+            <div class="mt-2">
+              <button @click="downloadAllAsZip" class="btn">📦 Скачать архивом</button>
+              <div class="file-grid mt-2">
+                <div
+                  v-for="(fileChunk, index) in chunkedFiles"
+                  :key="index"
+                  class="file-column"
+                >
+                  <ul>
+                    <li v-for="file in fileChunk" :key="file.id" class="file-row">
+                      <span @click="openFile(file)" class="clickable-filename">📄 {{ file.filename }}</span>
+                      <button v-if="$store.getters.hasRole('Администратор')" @click="deleteFile(file)" class="btn btn-sm">❌</button>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
-          </div>
-        </details>
+          </details>
+        </div>
+        <p v-else>Файлы не прикреплены.</p>
       </div>
-      <p v-else>Файлы не прикреплены.</p>
     </main>
 
     <!-- Комментарии -->
@@ -773,6 +908,70 @@ const sortedWorkshops = computed(() => {
 </template>
 
 <style scoped>
+.nest-info-container {
+  width: 100%;
+  background-color: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: sans-serif;
+}
+
+.info-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 8px;
+}
+
+.info-pair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+}
+
+.info-value {
+  color: #222;
+  font-weight: 500;
+}
+
+.info-path {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.path {
+  flex-grow: 1;
+  overflow: hidden;
+  display: inline-block;
+}
+img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.nest-file-button {
+  margin-bottom: 8px;
+  width: 100%;
+  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .clickable-filename {
   cursor: pointer;
   color: #3b3b3b;
@@ -802,7 +1001,7 @@ const sortedWorkshops = computed(() => {
   padding: 16px;
 }
 .sidebar {
-  width: 220px;
+  width: 250px;
   background: #f5f5f5;
   padding: 12px;
   border-radius: 8px;

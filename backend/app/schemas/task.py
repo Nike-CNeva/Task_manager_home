@@ -117,6 +117,57 @@ class FilesRead(BaseModel):
     file_type: str
     file_path: str
 
+class ClampLocationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    clamp_1: int
+    clamp_2: int
+    clamp_3: int
+
+class PartRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    part_id: int
+    name: str
+    quantity: int
+    time_per_part: str
+
+class ToolRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    station: str
+    tool: str
+    size: str
+    angle: int
+    die: float
+    hits: int
+
+class NestFilesRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    file_id: int
+    nest_id: int
+    material: str
+    thickness: str
+    nc_file_name: str
+    sheet_utilization: float
+    sheet_size: str
+    time_per_sheet: str
+    nest_notes: Optional[str]
+    sheet_quantity: int
+    sheet_quantity_done: Optional[int]
+    nest_screen_file_path: str
+    clamp_location: ClampLocationRead
+    parts: List[PartRead]
+    tools: List[ToolRead]
+
+
+
+
 class BidRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
@@ -129,10 +180,7 @@ class BidRead(BaseModel):
     comments: List[CommentRead] = []
     progress_percent: Optional[float] = None
     files: Optional[List[FilesRead]] = None
-
-
-
-
+    nest_files: Optional[List[NestFilesRead]] = None
 
 class MaterialCreateSchema(BaseModel):
     """

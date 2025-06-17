@@ -7,6 +7,7 @@ from fastapi import HTTPException, UploadFile
 from backend.app.models import comment
 from backend.app.models.bid import Bid, Customer
 from backend.app.models.enums import CassetteTypeEnum, KlamerTypeEnum, ManagerEnum, ProductTypeEnum, ProfileTypeEnum, StatusEnum
+from backend.app.models.files import Files, NestFile
 from backend.app.models.material import Material, Sheets
 from backend.app.models.product import Bracket, Cassette, ExtensionBracket, Klamer, LinearPanel, Product, Profile
 from backend.app.models.task import Task, TaskProduct, TaskWorkshop
@@ -17,7 +18,7 @@ from backend.app.schemas.bid import BidCreate
 from backend.app.schemas.comment import CommentRead
 from backend.app.schemas.file import UploadedFileResponse
 from backend.app.schemas.product_fields import get_product_fields
-from backend.app.schemas.task import BidRead, BidRead, CustomerShort, FilesRead, MaterialReadShort, ProductTRead, TaskProductRead, TaskRead, TaskWorkshopRead
+from backend.app.schemas.task import BidRead, BidRead, CustomerShort, FilesRead, MaterialReadShort, NestFilesRead, ProductTRead, TaskProductRead, TaskRead, TaskWorkshopRead
 from backend.app.schemas.user import UserRead
 from backend.app.services.file_service import save_file
 from backend.app.database.database_service import AsyncDatabaseService
@@ -168,6 +169,13 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
             selectinload(Task.bid).selectinload(Bid.customer),
             selectinload(Task.bid).selectinload(Bid.comments),
             selectinload(Task.bid).selectinload(Bid.files),
+            selectinload(Task.bid).selectinload(Bid.files).selectinload(Files.nest_file),
+            selectinload(Task.bid).selectinload(Bid.files).selectinload(Files.nest_file)
+            .options(
+                selectinload(NestFile.clamp_location),
+                selectinload(NestFile.parts),
+                selectinload(NestFile.tools),
+                ),
             selectinload(Task.bid).selectinload(Bid.comments).selectinload(Comment.user),
             selectinload(Task.material),
             selectinload(Task.material).selectinload(Material.weights),
@@ -268,7 +276,12 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
         status=bid_obj.status,
         tasks=[task_read],
         comments=comments,
-        files=files
+        files=files,
+        nest_files=[
+            NestFilesRead.model_validate(file.nest_file, from_attributes=True)
+            for file in task.bid.files
+            if file.nest_file
+        ]
     )
 
     return bid_read
