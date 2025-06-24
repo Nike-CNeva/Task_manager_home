@@ -400,6 +400,23 @@ async function downloadAllAsZip() {
     alert("Ошибка при скачивании архива.");
   }
 }
+async function downloadNcAsZip() {
+  try {
+    const response = await api.get(`/tasks/${task.value.id}/nc/zip`, {
+      responseType: "blob",
+    });
+    const blob = new Blob([response.data], { type: "application/zip" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `bid_${task.value.id}_nc.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error("Ошибка при скачивании архива:", error);
+    alert("Ошибка при скачивании архива.");
+  }
+}
 const deleteFile = async (file) => {
   if (!confirm(`Удалить файл "${file.filename}"?`)) return;
 
@@ -585,7 +602,6 @@ function resetDetails() {
 function confirmSheetDone() {
   // Здесь ты можешь сделать запрос на сервер или обновить данные локально
   selectedNestFile.sheet_quantity_done = sheetDoneInput.value;
-  console.log('Подтверждено:', sheetDoneInput.value);
 }
 </script>
 
@@ -646,6 +662,7 @@ function confirmSheetDone() {
 
       <div v-if="task.nest_files?.length && $store.getters.hasWorkshop(['Координатка'])">
         <h3>🧩 Nest-файлы</h3>
+        <button @click="downloadNcAsZip" class="btn btn-secondary" style="width: 100%; margin-bottom: 10px;">📦 Скачать Nc файлы</button>
         <div v-for="nestFile in task.nest_files" :key="nestFile.id" class="nest-file-button">
           <button class="btn btn-secondary" @click="showNestDetails(nestFile)" style="width: 100%">
             📄 {{ nestFile.nc_file_name || `NEST ${nestFile.nest_id}` }}
@@ -667,7 +684,7 @@ function confirmSheetDone() {
     <main class="details">
       <div v-if="selectedNestFile" style="display: flex; flex-direction: column; gap: 16px;">
         <h3 class="text-lg font-bold mb-2">NC-файл: {{ selectedNestFile.nc_file_name }}</h3>
-        <img :src="selectedNestFile.nest_screen_file_path.replace('/app/backend/app', '')" alt="nest preview" class="mt-2 max-w-sm rounded" />
+        <img :src="`https://api.nike-cneva.ru${selectedNestFile.nest_screen_file_path.replace('/app/backend/app', '')}`" alt="nest preview" class="mt-2 max-w-sm rounded" />
         <div class="nest-info-container">
           <!-- Материал и Толщина -->
           <div class="info-row">
@@ -857,6 +874,7 @@ function confirmSheetDone() {
             <summary>📁 Файлы ({{ task.files.length }})</summary>
             <div class="mt-2">
               <button @click="downloadAllAsZip" class="btn">📦 Скачать архивом</button>
+              
               <div class="file-grid mt-2">
                 <div
                   v-for="(fileChunk, index) in chunkedFiles"

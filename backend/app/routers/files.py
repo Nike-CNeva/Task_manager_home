@@ -145,3 +145,24 @@ async def download_files_zip(bid_id: int, db: AsyncSession = Depends(get_db)):
     # Очистка временной папки можно делать через фоновую задачу
     return FileResponse(zip_path, filename=os.path.basename(zip_path))
 
+@router.get("/tasks/{bid_id}/nc/zip")
+async def download_files_zip(bid_id: int, db: AsyncSession = Depends(get_db)):
+    # Путь к временной папке и zip-файлу
+    zip_path = f"temp/task_{bid_id}_nc.zip"
+    temp_dir = f"temp/task_{bid_id}_nc"
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Скопировать файлы задачи во временную папку
+    files = await file_service.get_files_for_bid(db, bid_id)  # реализуй сам
+    for f in files:
+        if f.filename.lower().endswith('.nc'):
+            shutil.copy(f.file_path, os.path.join(temp_dir, f.filename))
+
+    # Создать архив
+    with ZipFile(zip_path, 'w') as zipf:
+        for filename in os.listdir(temp_dir):
+            zipf.write(os.path.join(temp_dir, filename), arcname=filename)
+
+    # Очистка временной папки можно делать через фоновую задачу
+    return FileResponse(zip_path, filename=os.path.basename(zip_path))
+

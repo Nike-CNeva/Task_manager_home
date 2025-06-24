@@ -1,4 +1,5 @@
 import datetime
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Set
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -263,6 +264,11 @@ async def get_bid_by_task_id(task_id: int, db: AsyncSession) -> Optional[BidRead
             file_path=file.file_path
         )
         for file in task.bid.files
+        if not Path(file.filename).suffix.lower() == '.nc'
+        and not (
+            Path(file.filename).suffix.lower() == '.pdf'
+            and file.filename.startswith(str(task.bid.task_number))
+        )
     ]
     bid_obj = task.bid
     bid_read = BidRead(
